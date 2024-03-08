@@ -1,4 +1,5 @@
 `default_nettype none
+`include "config.vh"
 
 module CHIPSET (
 	input		wire					clock,
@@ -60,6 +61,16 @@ module CHIPSET (
 	input		wire	[7:0]			port_c_in,
 	output	wire	[7:0]			port_c_out,
 	output	wire	[7:0]			port_c_io,
+`ifdef EMULATE_PS2
+	input		wire					ps2_clock,
+	input		wire					ps2_data,
+	output	wire					ps2_clock_out,
+	output	wire					ps2_data_out,
+	input    wire [7:0]        ms_x,
+	input    wire [7:0]        ms_y,
+	input    wire [3:0]        ms_z,
+	input    wire [2:0]        ms_b,
+`else
 	input		wire					ps2_clock,
 	input		wire					ps2_data,
 	output	wire					ps2_clock_out,
@@ -68,6 +79,7 @@ module CHIPSET (
    input    wire              ps2_mousedat_in,
    output   wire              ps2_mouseclk_out,
    output   wire              ps2_mousedat_out,
+`endif
 	input		wire	[4:0]			joy_opts,
 	input		wire	[31:0] 		joy0,
 	input		wire	[31:0] 		joy1,
@@ -92,12 +104,21 @@ module CHIPSET (
 	input		wire					uart_dsr_n,
 	output	wire					uart_rts_n,
 	output	wire					uart_dtr_n,
-// MMC interface
+
+`ifdef PHYSICAL_IDE
+	output   wire  [1:0]       ide_cs_n,
+	output   wire              ide_rd_n,
+	output   wire              ide_wr_n,
+	output   wire  [2:0]       ide_a,
+	inout    wire  [15:0]      ide_d,
+	output   wire              ide_reset_n,
+`else
    output   wire              spi_clk,
    output   wire              spi_cs,
    output   wire              spi_mosi,
    input    wire              spi_miso,
-//
+`endif
+
    output   wire  [7:0]       xtctl,
 	output	wire	[20:0]		SRAM_ADDR,
 	inout 	wire	[7:0] 		SRAM_DATA,
@@ -239,19 +260,30 @@ module CHIPSET (
 		.port_c_in(port_c_in),
 		.port_c_out(port_c_out),
 		.port_c_io(port_c_io),
+`ifdef EMULATE_PS2
+		.ps2_clock(ps2_clock),
+		.ps2_data(ps2_data),
+		.ps2_clock_out(ps2_clock_out),
+		.ps2_data_out(ps2_data_out),
+		.ms_x(ms_x),
+		.ms_y(ms_y),
+		.ms_z(ms_z),
+		.ms_b(ms_b),
+`else
 		.ps2_clock(ps2_clock),
 		.ps2_data(ps2_data),
       .ps2_mouseclk_in(ps2_mouseclk_in),
       .ps2_mousedat_in(ps2_mousedat_in),
       .ps2_mouseclk_out(ps2_mouseclk_out),
       .ps2_mousedat_out(ps2_mousedat_out),
+		.ps2_clock_out(ps2_clock_out),
+		.ps2_data_out(ps2_data_out),
+`endif
 //		.joy_opts(joy_opts),
 //		.joy0(joy0),
 //		.joy1(joy1),
 //		.joya0(joya0),
 //		.joya1(joya1),
-		.ps2_clock_out(ps2_clock_out),
-		.ps2_data_out(ps2_data_out),
 		.clk_en_opl2(clk_en_opl2),
 		.jtopl2_snd_e(jtopl2_snd_e),
 		.adlibhide(adlibhide),
@@ -270,10 +302,21 @@ module CHIPSET (
 		.ems_enabled(ems_enabled),
 		.ems_address(ems_address),
 		.cga_vram_rdy(cga_vram_rdy),
+
+`ifdef PHYSICAL_IDE
+		.ide_cs_n(ide_cs_n),
+		.ide_rd_n(ide_rd_n),
+		.ide_wr_n(ide_wr_n),
+		.ide_a(ide_a),
+		.ide_d(ide_d),
+		.ide_reset_n(ide_reset_n),
+`else
       .spi_clk(spi_clk),
       .spi_cs(spi_cs),
       .spi_mosi(spi_mosi),
       .spi_miso(spi_miso),
+`endif
+
 		.xtctl(xtctl),
 		.btn_green_n_i(btn_green_n_i),
 		.btn_yellow_n_i(btn_yellow_n_i)

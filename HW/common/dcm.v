@@ -73,7 +73,8 @@ module dcm
   // Clock out ports
   output        CLK_OUT1,
   output        CLK_OUT2,
-  output        CLK_OUT3
+  output        CLK_OUT3,
+  output 		 LOCKED
  );
 
   // Input buffering
@@ -82,6 +83,7 @@ module dcm
    (.O (clkin1),
     .I (CLK_IN1));
 
+	assign LOCKED = locked_unused;
 
   // Clocking primitive
   //------------------------------------

@@ -1,4 +1,5 @@
 `default_nettype none
+`include "config.vh"
 
 module PERIPHERALS (
 	input		wire					clock,
@@ -40,6 +41,16 @@ module PERIPHERALS (
 	input		wire	[7:0]			port_c_in,
 	output	wire	[7:0]			port_c_out,
 	output	wire	[7:0]			port_c_io,
+`ifdef EMULATE_PS2
+	input		wire					ps2_clock,
+	input		wire					ps2_data,
+	output	reg					ps2_clock_out,
+	output	wire					ps2_data_out,
+	input    wire  [7:0]       ms_x,
+	input    wire  [7:0]       ms_y,
+	input    wire  [4:0]       ms_z,
+	input    wire  [2:0]       ms_b,
+`else
 	input		wire					ps2_clock,
 	input		wire					ps2_data,
 	output	reg					ps2_clock_out,
@@ -48,6 +59,7 @@ module PERIPHERALS (
    input    wire              ps2_mousedat_in,
    output   wire              ps2_mouseclk_out,
    output   wire              ps2_mousedat_out,
+`endif
 //	input		wire	[4:0]			joy_opts,
 //	input		wire	[31:0]		joy0,
 //	input		wire	[31:0]		joy1,
@@ -72,12 +84,21 @@ module PERIPHERALS (
 	input		wire					ems_enabled,
 	input		wire	[1:0]			ems_address,
 	output	wire					cga_vram_rdy,
-// MMC interface
+
+`ifdef PHYSICAL_IDE
+	output   wire  [1:0]       ide_cs_n,
+	output   wire              ide_rd_n,
+	output   wire              ide_wr_n,
+	output   wire  [2:0]       ide_a,
+	inout    wire  [15:0]      ide_d,
+	output   wire              ide_reset_n,
+`else
    output   wire              spi_clk,
    output   wire              spi_cs,
    output   wire              spi_mosi,
    input    wire              spi_miso,
-//
+`endif
+
 	output   reg  [7:0]        xtctl = 8'h00,
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
@@ -281,6 +302,35 @@ module PERIPHERALS (
 			prev_ps2_reset_n <= 1'b0;
 		else
 			prev_ps2_reset_n <= ps2_reset_n;
+
+`ifdef EMULATE_PS2
+	KFPS2KB_direct u_KFPS2KB(
+		.clock(clock),
+		.peripheral_clock(peripheral_clock),
+		.reset(reset),
+		.device_clock(ps2_clock | lock_recv_clock),
+		.reset_keybord(~prev_ps2_reset_n & ps2_reset_n),
+		.device_data(ps2_data),
+		.irq(keybord_irq),
+		.keycode(keycode),
+		.clear_keycode(clear_keycode),
+		.swap_video(),
+		.turbo_mode(),		
+		.initial_video(1'b0),
+		.initial_turbo(1'b0)
+	);
+	KFPS2KB_Send_Data u_KFPS2KB_Send_Data(
+		.clock(clock),
+		.peripheral_clock(peripheral_clock),
+		.reset(reset),
+		.device_clock(ps2_clock),
+		.device_clock_out(ps2_send_clock),
+		.device_data_out(ps2_data_out),
+		.sending_data_flag(lock_recv_clock),
+		.send_request(1'b0),
+		.send_data(8'hff)
+	);
+`else
 	KFPS2KB_direct u_KFPS2KB(
 		.clock(clock),
 		.peripheral_clock(peripheral_clock),
@@ -308,6 +358,7 @@ module PERIPHERALS (
 		.send_request(1'b0),
 		.send_data(8'hff)
 	);
+`endif
 
 `ifndef MEM_512KB
 	Tandy_Scancode_Converter u_Tandy_Scancode_Converter(
@@ -319,11 +370,13 @@ module PERIPHERALS (
 	);
 `endif
 
+`ifndef EMULATE_PS2
 	always @(posedge clock or posedge reset)
 		if (reset)
 			ps2_clock_out = 1'b1;
 		else
 			ps2_clock_out = ~((keybord_irq | ~ps2_send_clock) | ~ps2_reset_n);
+`endif
 	
 `ifdef SOUND_ADLIB
 	wire [7:0] jtopl2_dout;
@@ -433,7 +486,10 @@ module PERIPHERALS (
       .rts_n(rts_n),
 		.irq(uart_interrupt)
 	);
-	
+
+`ifdef EMULATE_PS2
+	// TODO: convert ms_x, ms_y, ms_z, ms_b to serial data
+`else	
     MSMouseWrapper MSMouseWrapper_inst 
     (
         .clk(clock),
@@ -444,6 +500,7 @@ module PERIPHERALS (
         .rts(~rts_n),
         .rd(uart_tx)
     );
+`endif
 `endif
 	
 	always @(posedge clock)
@@ -619,9 +676,13 @@ module PERIPHERALS (
 	
 `else
 
+`ifdef VIRTUAL_BUTTONS
+	assign scandoubler = ~btn_green_n_i;
+	assign turbo = ~btn_yellow_n_i;
+`else
 	assign scandoubler = swap_video;
 	assign turbo = turbo_mode;
-
+`endif
 `endif
 
 	always @(posedge clock) begin
@@ -796,10 +857,24 @@ module PERIPHERALS (
         .ide_data_bus_out   (ide0_data_bus_out)
     );
 	 
+	 // 
+	 // XTIDE-CF
+	 // 
+	 
+`ifdef PHYSICAL_IDE
+	
+	assign ide_cs_n = {ide0_cs3fx, ide0_cs1fx};
+	assign ide_rd_n = ide0_io_read_n;
+	assign ide_wr_n = ide0_io_write_n;
+	assign ide_a = ide0_address;
+	assign ide_d = (~ide0_io_write_n) ? ide0_data_bus_out : 16'hZZ;
+	assign ide0_data_bus_in = ide_d;
+	assign ide_reset_n = ~reset;
+`else	 
     //
     // XTIDE-MMC
     //
-    wire [15:0]    mmcide_readdata;
+	 wire [15:0]    mmcide_readdata;
 
     KFMMC_DRIVE_IDE #(
         .init_spi_clock_cycle               (8'd150),
@@ -827,7 +902,7 @@ module PERIPHERALS (
     );
 
     assign ide0_data_bus_in = mmcide_readdata;
-	 
+`endif	 
 	 
 	/*
 	wire [7:0] joy_data;

@@ -1,0 +1,16 @@
+{
+    "id": "pcxt",
+    "name": "PC XT",
+    "build": "24030802",
+    "bitstream": "karabas_go_top.bin",
+    "visible": true,
+    "type": "none",
+    "order": 6,
+    "eeprom_bank": 255,
+    "roms": [],
+    "osd": [
+        {"type": "S", "bits": 1, "name": "Video mode", "options": ["RGB", "VGA"], "default": 1, "hotkey": "Menu+F11"},
+        {"type": "S", "bits": 1, "name": "Turbo", "options": ["Off", "On"], "default": 0, "hotkey": "Menu+F12"},
+        {"type": "T", "bits": 1, "name": "Reset", "options": null, "default": 0, "hotkey": "Ctrl+Alt+Del"}
+    ]
+}

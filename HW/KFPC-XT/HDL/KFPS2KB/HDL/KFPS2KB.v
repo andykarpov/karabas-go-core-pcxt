@@ -7,7 +7,7 @@ module KFPS2KB (
 	output	reg					irq,
 	output	reg	[7:0]			keycode,
 	input		wire					clear_keycode,
-	input                                                   reset_keybord,
+	input    wire                                           reset_keybord,
 	output  reg                                             pause_core
 );
 	parameter over_time = 16'd1000;

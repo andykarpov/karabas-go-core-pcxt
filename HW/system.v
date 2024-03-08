@@ -1,33 +1,61 @@
 `timescale 1ns / 1ps
 `default_nettype none
+`include "config.vh"
 
 module system(
 	input		wire					clk_100,
 	input		wire					clk_chipset,
 	input		wire					clk_vga,
 	
-	output	wire					turbo,
-
+	output   wire 					turbo,
+	
 	output	wire	[20:0]		SRAM_ADDR,
 	inout		wire	[7:0]			SRAM_DATA,
 	output	wire					SRAM_WE_n,
+
 	output	wire	[5:0]			VGA_R,
 	output	wire	[5:0]			VGA_G,
 	output	wire	[5:0]			VGA_B,
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
 
+`ifdef EMULATE_PS2
+	input		wire					clkps2,
+	input		wire					dataps2,
+
+	input    wire [7:0]        ms_x,
+	input    wire [7:0]        ms_y,
+	input    wire [3:0]        ms_z,
+	input    wire [2:0]        ms_b,
+`else
 	inout		wire					clkps2,
 	inout		wire					dataps2,
 	inout    wire              mouseclk,
 	inout    wire              mousedata,
+`endif
 
+`ifdef AUDIO_DAC
+	output   wire [15:0]       AUD_L,
+	output   wire [15:0]       AUD_R,
+`else
 	output	wire					AUD_L,
 	output	wire					AUD_R,
+`endif
+
+`ifdef PHYSICAL_IDE
+	output   wire  [1:0]       ide_cs_n,
+	output   wire              ide_rd_n,
+	output   wire              ide_wr_n,
+	output   wire  [2:0]       ide_a,
+	inout    wire  [15:0]      ide_d,
+	output   wire              ide_reset_n,
+`else
 	output 	wire					SD_nCS,
 	output	wire					SD_DI,
 	output	wire					SD_CK,
 	input		wire					SD_DO,
+`endif
+
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
 	
@@ -79,6 +107,15 @@ clk_div3 clk_normal // 4.77MHz
 always @(posedge clk_4_77)
 	peripheral_clock <= ~peripheral_clock; // 2.385Mhz
 	
+`ifdef EMULATE_PS2
+//assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
+//assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
+
+always @(posedge peripheral_clock) begin
+	ps2_clock_in <= clkps2;
+	ps2_data_in <= dataps2;
+end
+`else
 assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
 assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
 assign mouseclk = (ps2_mouseclk_out == 1'b0) ? 1'b0 : 1'bZ;
@@ -90,6 +127,7 @@ always @(posedge peripheral_clock) begin
 	ps2_mouseclk_in <= mouseclk;
 	ps2_mousedat_in <= mousedata;
 end
+`endif
 	
 wire  biu_done;
 reg  turbo_mode;
@@ -268,10 +306,15 @@ reg splash_status = 1'b0;
 	always @(posedge clk_vga) begin	
 		sndval <= sndval - sndval[31:7] + (sndsign << 25);
 	end
-	
+
+`ifdef AUDIO_DAC
+	assign AUD_L = sndamp;
+	assign AUD_R = sndamp;
+`else
 	assign AUD_L = sndsign;
 	assign AUD_R = sndsign;
-		 
+`endif		
+		
    CHIPSET u_CHIPSET (
         .clock                              (clk_chipset),
         .cpu_clock                          (clk_cpu),
@@ -324,7 +367,17 @@ reg splash_status = 1'b0;
 //      .terminal_count_n                   (terminal_count_n)
         .port_b_out                         (port_b_out),
 		  .port_c_in                          (port_c_in),
-	     .speaker_out                        (speaker_out),   
+	     .speaker_out                        (speaker_out), 
+`ifdef EMULATE_PS2
+		  .ps2_clock                          (ps2_clock_in),
+	     .ps2_data                           (ps2_data_in),
+	     .ps2_clock_out                      (ps2_clock_out),
+	     .ps2_data_out                       (ps2_data_out),
+		  .ms_x 										  (ms_x),
+		  .ms_y                               (ms_y),
+		  .ms_z                               (ms_z),
+		  .ms_b                               (ms_b),
+`else		  
 		  .ps2_clock                          (ps2_clock_in),
 	     .ps2_data                           (ps2_data_in),
 	     .ps2_clock_out                      (ps2_clock_out),
@@ -333,6 +386,7 @@ reg splash_status = 1'b0;
         .ps2_mousedat_in                    (ps2_mousedat_in),
         .ps2_mouseclk_out                   (ps2_mouseclk_out),
         .ps2_mousedat_out                   (ps2_mousedat_out),
+`endif
 //		  .joy_opts                           (joy_opts),                          //Joy0-Disabled, Joy0-Type, Joy1-Disabled, Joy1-Type, turbo_sync
 //      .joy0                               (status[28] ? joy1 : joy0),
 //      .joy1                               (status[28] ? joy0 : joy1),
@@ -350,10 +404,21 @@ reg splash_status = 1'b0;
 //		  .ioctl_wr                           (ioctl_wr),
 //		  .ioctl_addr                         (ioctl_addr),
 //		  .ioctl_data                         (ioctl_data),
-		  .spi_clk                            (spi_clk),
-		  .spi_cs                             (spi_cs),
-		  .spi_mosi                           (spi_mosi),
-		  .spi_miso                           (spi_miso),
+
+`ifdef PHYSICAL_IDE
+		.ide_cs_n                             (ide_cs_n),
+		.ide_rd_n                             (ide_rd_n),
+		.ide_wr_n                             (ide_wr_n),
+		.ide_a                                (ide_a),
+		.ide_d                                (ide_d),
+		.ide_reset_n                          (ide_reset_n),		
+`else
+		.spi_clk                              (SD_CK),
+		.spi_cs                               (SD_nCS),
+		.spi_mosi                             (SD_DI),
+		.spi_miso                             (SD_DO),
+`endif
+		  
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),
 		  .SRAM_DATA                          (SRAM_DATA),
@@ -364,29 +429,6 @@ reg splash_status = 1'b0;
 		  .btn_yellow_n_i							  (btn_yellow_n_i)
     );
 
-    //
-    ///////////////////////   MMC     ///////////////////////
-    //
-    wire spi_clk;
-    wire spi_cs;
-    wire spi_mosi;
-    wire spi_miso;
-	 
-	// output 	wire					SD_nCS, // OK
-	// output	wire					SD_DI,
-	// output	wire					SD_CK,
-	// input		wire					SD_DO,
-	//
-	// output wire SD_CS, // OK
-	// output wire SD_DI,
-	// output reg SD_CK = 0, // OK
-	// input SD_DO,
-
-    assign  SD_CK      = spi_clk; // OK
-    assign  SD_DI      = spi_mosi;
-    assign  spi_miso   = SD_DO;
-    assign  SD_nCS     = spi_cs; // OK
-	 
     //
     ////////////////////////////  UART  ///////////////////////////////////
     //
