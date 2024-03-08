@@ -308,8 +308,8 @@ reg splash_status = 1'b0;
 	end
 
 `ifdef AUDIO_DAC
-	assign AUD_L = sndamp;
-	assign AUD_R = sndamp;
+	assign AUD_L = sndmix[15:0];
+	assign AUD_R = sndmix[15:0];
 `else
 	assign AUD_L = sndsign;
 	assign AUD_R = sndsign;

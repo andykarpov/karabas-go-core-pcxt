@@ -171,6 +171,8 @@
 	wire locked;
 	wire areset;
 	
+	wire [15:0] audio_l, audio_r;
+	
 	//---------- PLL ------------
 	
 	dcm dcm_system 
