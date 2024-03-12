@@ -7,7 +7,7 @@ module PERIPHERALS (
 	input		wire					peripheral_clock,
 	output	wire					turbo,
 	input		wire					reset,
-	output	wire					interrupt_to_cpu,
+	output	reg					interrupt_to_cpu,
 	input		wire					interrupt_acknowledge_n,
 	output	wire					dma_chip_select_n,
 	output	wire					dma_page_chip_select_n,
@@ -105,7 +105,7 @@ module PERIPHERALS (
 `include "config.vh"
 
 	wire [4:0] clkdiv;
-	logic prev_cpu_clock;
+	reg prev_cpu_clock;
 	
 	always @(posedge clock, posedge reset)
 	begin
@@ -115,8 +115,8 @@ module PERIPHERALS (
 			prev_cpu_clock <= cpu_clock;
 	end
 	
-	wire cpu_clock_posedge <= ~prev_cpu_clock & cpu_clock;
-	wire cpu_clock_negedge <= prev_cpu_clock & ~cpu_clock;
+	wire cpu_clock_posedge = ~prev_cpu_clock & cpu_clock;
+	wire cpu_clock_negedge = prev_cpu_clock & ~cpu_clock;
 
 	parameter ps2_over_time = 16'd1000;
 	wire tandy_video;
@@ -231,7 +231,7 @@ module PERIPHERALS (
 		.interrupt_acknowledge_n(interrupt_acknowledge_n),
 		.interrupt_to_cpu(interrupt_to_cpu_buf),
 `ifdef MOUSE_COM1
-		.interrupt_request({interrupt_request[7:5], uart_interrupt, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
+		.interrupt_request({interrupt_request[7:5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
 `else
 		.interrupt_request({interrupt_request[7:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
 `endif		

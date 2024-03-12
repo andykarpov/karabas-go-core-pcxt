@@ -52,11 +52,10 @@ begin
     -- simulate rts
     mouse_rts <= '1' after 200 ns;
 
-    ms_upd <= '0' after 300 ns,
-              '1' after 60 ms;
-
     -- simulate mouse data
-    ms_x <= "11111111" after 300 ns, "00000001" after 60 ms;
-    ms_y <= "11111111" after 300 ns, "00000001" after 60 ms;
+    ms_upd <= '0' after 300 ns, '1' after 20 ms, '0' after 60 ms;
+    ms_x <= "11111111" after 300 ns, "00000001" after 20 ms, "00000000" after 60 ms;
+    ms_y <= "11111111" after 300 ns, "00000001" after 20 ms, "00000000" after 60 ms;
+    ms_b <= "000" after 15 ms, "011" after 60 ms;
 
 end;

@@ -171,8 +171,6 @@
 	wire locked;
 	wire areset;
 	
-	wire [15:0] audio_l, audio_r;
-	
 	//---------- PLL ------------
 	
 	dcm dcm_system 
@@ -189,7 +187,11 @@
 	//---------- PCXT ------------
 
 	wire [5:0] r, g, b;
-	
+	wire serial_mouse_tx, serial_mouse_rts;
+	wire [15:0] audio_l, audio_r;
+	wire ps2_clk, ps2_dat;
+	wire kb_swap_video, kb_turbo_mode;
+
 	system sys_inst
 	(
 		.clk_100(clk_100),
@@ -235,6 +237,9 @@
 	//---------- MCU ------------
 
 	wire [7:0] hid_kb_status, hid_kb_dat0, hid_kb_dat1, hid_kb_dat2, hid_kb_dat3, hid_kb_dat4, hid_kb_dat5;
+	wire [7:0] ms_x, ms_y;
+	wire [2:0] ms_b;
+	wire ms_upd;
 	wire [12:0] joy_l, joy_r;
 	wire [15:0] softsw_command, osd_command;
 	wire mcu_busy;
@@ -289,9 +294,6 @@
 
 	//---------- Keyboard parser ------------
 
-	//wire [9:0] keycode;
-	//wire ps2_clk, ps2_dat;
-
 	hid_parser hid_parser(
 		.CLK(clk_50),
 		.RESET(areset),
@@ -318,7 +320,7 @@
 	
 	//---------- Soft switches ------------
 	
-	wire kb_reset; //, kb_swap_video, kb_turbo_mode;
+	wire kb_reset;
 	
 	soft_switches soft_switches(
 		.CLK(clk_50),

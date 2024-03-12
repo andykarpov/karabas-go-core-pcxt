@@ -44,7 +44,7 @@ architecture rtl of serial_mouse_convertor is
 	signal mousebuf_x : std_logic_vector(7 downto 0) := "00000000";
 	signal mousebuf_y : std_logic_vector(7 downto 0) := "00000000";
 	signal mousebuf_b : std_logic_vector(2 downto 0) := "000";
-	signal serialbuf : std_logic_vector(9 downto 0) := (others => '1'); -- stop, data, start
+	signal serialbuf : std_logic_vector(8 downto 0) := (others => '1'); -- stop bit , 7 bit data, start bit
 
 	signal cnt : std_logic_vector(15 downto 0) := (others => '0'); -- serial prescaler counter
 	signal prescaler: std_logic_vector(15 downto 0) := "1010001011000010"; -- serial prescaler = 50000000 / 1200
@@ -69,7 +69,7 @@ begin
 			-- accumulate usb hid data into acc_x, acc_y, acc_b
 			if ms_upd /= prev_ms_upd then 
 				acc_x <= std_logic_vector(signed(acc_x) + signed(ms_x));
-				acc_y <= std_logic_vector(signed(acc_y) - signed(ms_y));
+				acc_y <= std_logic_vector(signed(acc_y) + signed(ms_y));
 				acc_b <= ms_b;
 				prev_ms_upd <= ms_upd;
 			end if;
@@ -90,8 +90,8 @@ begin
 						qstate <= rts_m;
                     -- mouse data changed => send mouse data
 					elsif (acc_x /= x"00" or acc_y /= x"00" or acc_b /= prev_b) and sstate = serial_idle and MOUSE_RTS = '1' then 
-						mousebuf_x <= acc_x;
-						mousebuf_y <= acc_y;
+                        mousebuf_x <= acc_x;
+                        mousebuf_y <= acc_y;
 						mousebuf_b <= acc_b;
 						acc_x <= x"00";
 						acc_y <= x"00";
@@ -101,14 +101,14 @@ begin
 
 				-- rts request => clear buffer, abort tx
 				 when rts_m => 
-					  serialbuf <= "1111111111";
+					  serialbuf <= "111111111";
 					  sstate <= serial_idle;
 					  qstate <= send_m;			
 
 				-- send M character (0x4D) as response to RTS request
 				when send_m => 
                     if (sstate = serial_idle) then
-						serialbuf <= '1' & x"4D" & '0';
+						serialbuf <= '1' & "1001101" & '0';
 						sstate <= send_byte;
 					elsif (sstate = serial_end) then 
 						qstate <= idle;
@@ -117,7 +117,7 @@ begin
 				-- send mouse byte 1
 				when send_byte1 => 
 					if (sstate = serial_idle) then
-						serialbuf <= '1' & "11" & mousebuf_b(0) & mousebuf_b(1) & mousebuf_y(7 downto 6) & mousebuf_x(7 downto 6) & '0';
+						serialbuf <= '1' & "1" & mousebuf_b(0) & mousebuf_b(1) & mousebuf_y(7 downto 6) & mousebuf_x(7 downto 6) & '0';
 						sstate <= send_byte;
 					elsif (sstate = serial_end) then 
 						qstate <= send_byte2;
@@ -126,7 +126,7 @@ begin
 				-- send mouse byte 2
 				when send_byte2 => 
 					if (sstate = serial_idle) then
-						serialbuf <= '1' & "10" & mousebuf_x(5 downto 0) & '0';
+						serialbuf <= '1' & "0" & mousebuf_x(5 downto 0) & '0';
 						sstate <= send_byte;
 					elsif (sstate = serial_end) then 
 						qstate <= send_byte3;
@@ -135,7 +135,7 @@ begin
 				-- send mouse byte 3
 				when send_byte3 => 
 					if (sstate = serial_idle) then
-						serialbuf <= '1' & "10" & mousebuf_y(5 downto 0) & '0';
+						serialbuf <= '1' & "0" & mousebuf_y(5 downto 0) & '0';
 						sstate <= send_byte;
 					elsif (sstate = serial_end) then 
 						qstate <= idle;
@@ -150,7 +150,7 @@ begin
 				-- init bit counter
 				when send_byte => 
                     cnt <= "0000000000000000";
-					bitcnt <= "1001"; --9
+					bitcnt <= "1000"; --8
 					sstate <= serial_tx;				
 
 				-- serial transfer
@@ -159,10 +159,10 @@ begin
                     if rts_req = '1' then 
                         qstate <= idle;
                         sstate <= serial_idle;
-                        serialbuf <= "1111111111";
+                        serialbuf <= "111111111";
 					elsif cnt = prescaler then
 						bitcnt <= std_logic_vector(unsigned(bitcnt) - 1);
-						serialbuf <= '1' & serialbuf(9 downto 1);
+						serialbuf <= '1' & serialbuf(8 downto 1);
 						if (bitcnt = "0000") then 
 							sstate <= serial_end;
 						end if;
