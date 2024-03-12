@@ -19,7 +19,7 @@ Family | Models | LEs | BRAM
 -------- | ----------- | ----------- | -----------
 XC6SLX9 | ZXUno, ZXUnCore | 9152 | 72 Kbytes
 XC6SLX16 | ZXDos, NGo | 14579 | 72 Kbytes
-XC6SLX25 | UnoXT, UnoXT2, ZXDos+ | 24051 | 117 KBytes
+XC6SLX25 | UnoXT, UnoXT2, ZXDos+, Karabas-Go | 24051 | 117 KBytes
 
 ### PCXT default features according to model
 
@@ -37,13 +37,14 @@ NGo | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy 
 ZXDos+ | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxdosplus/coreXX.zxd)
 UnoXT | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/unoxt/coreXX.zxt)
 UnoXT2 | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/unoxt2/coreXX.xt2)
+Karabas-Go | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/andykarpov/karabas-go/raw/main/cores/pcxt.kg1)
 
 ### PCXT common features
 
 * Color Graphics Adapter (CGA)
-* VGA/RGB output switch (F11)
-* Turbo Mode ON/OFF (F12)
-* XTIDE support
+* VGA/RGB output switch (F11, Menu+F11 on Karabas-Go)
+* Turbo Mode ON/OFF (F12, Menu+F12 on Karabas-Go)
+* XTIDE support (with real CF card on Karabas-Go)
 * Mouse support into COM1 serial port, this works like any Microsoft mouse... you just need a driver to configure it, like CTMOUSE 1.9 (available into hdd folder)
 
 Note: On LX9 models, it is possible to remove the mouse and add Adlib, it would be necessary to resynthesise to get the binary, see Developers section.
