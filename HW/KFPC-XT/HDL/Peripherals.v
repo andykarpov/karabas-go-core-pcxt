@@ -46,10 +46,8 @@ module PERIPHERALS (
 	input		wire					ps2_data,
 	output	reg					ps2_clock_out,
 	output	wire					ps2_data_out,
-	input    wire  [7:0]       ms_x,
-	input    wire  [7:0]       ms_y,
-	input    wire  [4:0]       ms_z,
-	input    wire  [2:0]       ms_b,
+	input    wire 					serial_mouse_tx,
+	output   wire 					serial_mouse_rts,
 `else
 	input		wire					ps2_clock,
 	input		wire					ps2_data,
@@ -105,6 +103,20 @@ module PERIPHERALS (
 	);
 	
 `include "config.vh"
+
+	wire [4:0] clkdiv;
+	logic prev_cpu_clock;
+	
+	always @(posedge clock, posedge reset)
+	begin
+		if (reset) 
+			prev_cpu_clock <= 1'b0;
+		else
+			prev_cpu_clock <= cpu_clock;
+	end
+	
+	wire cpu_clock_posedge <= ~prev_cpu_clock & cpu_clock;
+	wire cpu_clock_negedge <= prev_cpu_clock & ~cpu_clock;
 
 	parameter ps2_over_time = 16'd1000;
 	wire tandy_video;
@@ -204,6 +216,7 @@ module PERIPHERALS (
 	reg keybord_interrupt;
 	wire uart_interrupt;
 	wire [7:0] interrupt_data_bus_out;
+	wire interrupt_to_cpu_buf;
 	KF8259 u_KF8259(
 		.clock(clock),
 		.reset(reset),
@@ -216,13 +229,22 @@ module PERIPHERALS (
 		.cascade_in(3'b000),
 		.slave_program_n(1'b1),
 		.interrupt_acknowledge_n(interrupt_acknowledge_n),
-		.interrupt_to_cpu(interrupt_to_cpu),
+		.interrupt_to_cpu(interrupt_to_cpu_buf),
 `ifdef MOUSE_COM1
 		.interrupt_request({interrupt_request[7:5], uart_interrupt, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
 `else
 		.interrupt_request({interrupt_request[7:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
 `endif		
 	);
+	
+	always @(posedge clock or posedge reset)
+		if (reset) 
+			interrupt_to_cpu <= 1'b0;
+		else if (cpu_clock_negedge)
+			interrupt_to_cpu <= interrupt_to_cpu_buf;
+		else
+			interrupt_to_cpu <= interrupt_to_cpu;
+	
 	reg prev_p_clock_1;
 	reg prev_p_clock_2;
 	always @(posedge clock or posedge reset)
@@ -488,7 +510,8 @@ module PERIPHERALS (
 	);
 
 `ifdef EMULATE_PS2
-	// TODO: convert ms_x, ms_y, ms_z, ms_b to serial data
+	assign uart_tx = serial_mouse_tx;
+	assign serial_mouse_rts = ~rts_n;
 `else	
     MSMouseWrapper MSMouseWrapper_inst 
     (

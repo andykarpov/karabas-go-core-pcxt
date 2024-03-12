@@ -37,10 +37,12 @@ https://www.avrfreaks.net/sites/default/files/PS2%20Keyboard.pdf
 module MSMouseWrapper_emu
 	#(parameter CLKFREQ=50_000_000)
 	(input wire clk,
+	
 	input wire [7:0] ms_x,
 	input wire [7:0] ms_y,
-	input wire [3:0] ms_z,
 	input wire [2:0] ms_b,
+	input wire ms_upd,
+	
 	input wire rts,
 	output reg rd=0
 	);
@@ -50,47 +52,74 @@ localparam SERIALBAUDRATE=1_200;
 localparam SERIALPERIOD=(CLKFREQ/SERIALBAUDRATE);
 localparam MILLIS=(CLKFREQ/1000);
 
-`define 	PAR_ODD	0
-`define	PAR_EVEN	1
-
 `define RTSRISE		(rtsbuf==4'b0011)
+`define RTSFALL		(rtsbuf==4'b0000)
+
 reg [3:0]rtsbuf=0;
 
 always @(posedge clk)begin
 	rtsbuf<={rtsbuf[2:0],rts};
 end
 
-`define MSMByte1			{2'b11,LBut,RBut,AccY[7:6],AccX[7:6]}
-`define MSMByte2			{2'b10,AccX[5:0]}
-`define MSMByte3			{2'b10,AccY[5:0]}
+`define MSMByte1			{2'b11, LBut, RBut, AccY[7:6], AccX[7:6]}
+`define MSMByte2			{2'b10, AccX[5:0]}
+`define MSMByte3			{2'b10, AccY[5:0]}
 
 `define Serial_Reset		 0
 
+`define PS2Pr_M			30'h39AFFFFF
+
 `define TMR_END	(Timer==0)
 
-wire [7:0]YC= ms_y;
-wire [7:0]XC= ms_x;
-wire LeftBt=ms_b[0];
-wire RightBt=ms_b[1];
-
+reg [7:0] prev_ms_x, prev_ms_y;
+reg [2:0] prev_ms_b;
+reg prev_ms_upd;
 reg LBut=0;
 reg RBut=0;
 reg Prev_LBut=0;
 reg Prev_RBut=0;
-reg msbX=0;
-reg msbY=0;
-reg [1:0]ByteSync=0;
-reg [7:0]AccX=0;
-reg [7:0]AccY=0;
-
-reg FUpdate=0;
-reg PS2Detected=0;
-
+reg signed [7:0]AccX=0;
+reg signed [7:0]AccY=0;
 reg [$clog2(MILLIS)-1:0]Timer=0;
 reg SerialSendRequest=0;
 reg [4:0]Serial_STM=0;
 reg [29:0]SerialSendData=0;
 
+always @(posedge clk)begin
+
+	if (SerialSendRequest==1)SerialSendRequest<=0;
+
+///////////////////////////////////////////
+/////////////Mouse Emulation///////////////
+///////////////////////////////////////////
+
+	// update accumulators from usb host data
+	if (prev_ms_upd != ms_upd) begin
+		prev_ms_upd <= ms_upd;
+		LBut <= ms_b[0];
+		RBut <= ms_b[1];
+		AccX <= AccX + $signed(ms_x);
+		AccY <= AccY - $signed(ms_y);
+	end
+
+	// mouse detection by RTS signal: send M character
+	if (`RTSRISE) begin
+		SendSerial(`PS2Pr_M);
+		//Timer <= 0;
+	end 
+	// mouse packets if data changed
+	else begin
+		if (Timer!=0)Timer<=Timer-1;		
+		if (SerialSendRequest==0 && Serial_STM==0) begin
+			if (AccX!=0 || AccY!=0 || LBut!=Prev_LBut || RBut!=Prev_RBut) begin
+				SendSerial({1'b1,`MSMByte3,2'b01,`MSMByte2,2'b01,`MSMByte1,1'b0});
+				Prev_LBut<=LBut;
+				Prev_RBut<=RBut;
+				AccX<=0;
+				AccY<=0;
+			end
+		end
+	end
 
 ///////////////////////////////////////////
 /////////////Serial Transmision////////////
@@ -119,7 +148,7 @@ reg [29:0]SerialSendData=0;
 		end
 	endcase
 	end
-
+end
 
 task SendSerial (input [29:0] ByteToSend);
 begin

@@ -209,10 +209,8 @@
 		.clkps2(ps2_clk),
 		.dataps2(ps2_dat),
 		
-		.ms_x(cursor_x),
-		.ms_y(cursor_y),
-		.ms_z(cursor_z),
-		.ms_b(cursor_b),
+		.serial_mouse_tx(serial_mouse_tx),
+		.serial_mouse_rts(serial_mouse_rts),
 		
 		.AUD_L(audio_l),
 		.AUD_R(audio_r),
@@ -242,7 +240,7 @@
 	wire mcu_busy;
 
 	mcu mcu(
-		.CLK(clk_28_571),
+		.CLK(clk_50),
 		.N_RESET(~areset),
 		
 		.MCU_MOSI(MCU_MOSI),
@@ -295,7 +293,7 @@
 	//wire ps2_clk, ps2_dat;
 
 	hid_parser hid_parser(
-		.CLK(clk_28_571),
+		.CLK(clk_50),
 		.RESET(areset),
 
 		.KB_STATUS(hid_kb_status),
@@ -307,8 +305,15 @@
 		.KB_DAT5(hid_kb_dat5),	
 
 		.PS2_CLK(ps2_clk),
-		.PS2_DAT(ps2_dat)
+		.PS2_DAT(ps2_dat),
 		
+		.MS_X(ms_x),
+		.MS_Y(ms_y),
+		.MS_B(ms_b),
+		.MS_UPD(ms_upd),
+		
+		.MOUSE_TX(serial_mouse_tx),
+		.MOUSE_RTS(serial_mouse_rts)		
 	);
 	
 	//---------- Soft switches ------------
@@ -316,7 +321,7 @@
 	wire kb_reset; //, kb_swap_video, kb_turbo_mode;
 	
 	soft_switches soft_switches(
-		.CLK(clk_28_571),
+		.CLK(clk_50),
 		
 		.SOFTSW_COMMAND(softsw_command),
 
@@ -328,24 +333,6 @@
 	
 	assign btn_reset_n = ~kb_reset & ~mcu_busy;
 
-	//---------- Mouse / cursor ------------
-
-	cursor cursor(
-		.CLK(clk_28_571),
-		.RESET(areset),
-		
-		.MS_X(ms_x),
-		.MS_Y(ms_y),
-		.MS_Z(ms_z),
-		.MS_B(ms_b),
-		.MS_UPD(ms_upd),
-		
-		.OUT_X(cursor_x),
-		.OUT_Y(cursor_y),
-		.OUT_Z(cursor_z),
-		.OUT_B(cursor_b)
-	);
-	
 	//---------- DAC ------------
 
 	PCM5102 PCM5102(

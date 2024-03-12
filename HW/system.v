@@ -22,11 +22,8 @@ module system(
 `ifdef EMULATE_PS2
 	input		wire					clkps2,
 	input		wire					dataps2,
-
-	input    wire [7:0]        ms_x,
-	input    wire [7:0]        ms_y,
-	input    wire [3:0]        ms_z,
-	input    wire [2:0]        ms_b,
+	input    wire              serial_mouse_tx,
+	output   wire              serial_mouse_rts,	
 `else
 	inout		wire					clkps2,
 	inout		wire					dataps2,
@@ -373,10 +370,8 @@ reg splash_status = 1'b0;
 	     .ps2_data                           (ps2_data_in),
 	     .ps2_clock_out                      (ps2_clock_out),
 	     .ps2_data_out                       (ps2_data_out),
-		  .ms_x 										  (ms_x),
-		  .ms_y                               (ms_y),
-		  .ms_z                               (ms_z),
-		  .ms_b                               (ms_b),
+		  .serial_mouse_tx                    (serial_mouse_tx),
+		  .serial_mouse_rts                   (serial_mouse_rts),
 `else		  
 		  .ps2_clock                          (ps2_clock_in),
 	     .ps2_data                           (ps2_data_in),

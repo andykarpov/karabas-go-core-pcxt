@@ -25,7 +25,18 @@ entity hid_parser is
 
 	 -- ps/2
 	 PS2_CLK : out std_logic;
-	 PS2_DAT : out std_logic
+	 PS2_DAT : out std_logic;
+	 
+	 -- incoming usb mouse events
+	 MS_X    : in std_logic_vector(7 downto 0);
+	 MS_Y    : in std_logic_vector(7 downto 0);
+	 MS_B    : in std_logic_vector(2 downto 0);
+	 MS_UPD  : in std_logic;
+	 
+	 -- serial mouse uart
+	 MOUSE_TX : out std_logic;
+	 MOUSE_RTS : in std_logic
+	 
 	);
 end hid_parser;
 
@@ -45,6 +56,18 @@ begin
 		kb_dat5 => KB_DAT5,
 		PS2data => PS2_DAT,
 		PS2clock => PS2_CLK
+	);
+	
+	U_serial_mouse: entity work.serial_mouse_convertor
+	port map(
+		clk => CLK,
+		reset => RESET,		
+		ms_x => MS_X,
+		ms_y => MS_Y,
+		ms_b => MS_B,
+		ms_upd => MS_UPD,
+		mouse_rts => MOUSE_RTS,
+		mouse_tx => MOUSE_TX
 	);
 
 end rtl;

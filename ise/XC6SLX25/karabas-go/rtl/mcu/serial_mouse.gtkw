@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Mar 12 09:13:47 2024
+[*]
+[dumpfile] "/home/andy/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-go/karabas-go-core-pcxt/ise/XC6SLX25/karabas-go/rtl/mcu/serial_mouse.ghw"
+[dumpfile_mtime] "Tue Mar 12 09:08:02 2024"
+[dumpfile_size] 90001168
+[savefile] "/home/andy/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-go/karabas-go-core-pcxt/ise/XC6SLX25/karabas-go/rtl/mcu/serial_mouse.gtkw"
+[timestart] 55110000000000
+[size] 1920 1016
+[pos] -1 -1
+*-42.329075 61600000000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.serial_mouse_testbench.
+[treeopen] top.serial_mouse_testbench.uut.
+[sst_width] 249
+[signals_width] 245
+[sst_expanded] 1
+[sst_vpaned_height] 289
+@29
+[color] 3
+top.serial_mouse_testbench.clk50
+@22
+#{top.serial_mouse_testbench.uut.cnt[15:0]} top.serial_mouse_testbench.uut.cnt[15] top.serial_mouse_testbench.uut.cnt[14] top.serial_mouse_testbench.uut.cnt[13] top.serial_mouse_testbench.uut.cnt[12] top.serial_mouse_testbench.uut.cnt[11] top.serial_mouse_testbench.uut.cnt[10] top.serial_mouse_testbench.uut.cnt[9] top.serial_mouse_testbench.uut.cnt[8] top.serial_mouse_testbench.uut.cnt[7] top.serial_mouse_testbench.uut.cnt[6] top.serial_mouse_testbench.uut.cnt[5] top.serial_mouse_testbench.uut.cnt[4] top.serial_mouse_testbench.uut.cnt[3] top.serial_mouse_testbench.uut.cnt[2] top.serial_mouse_testbench.uut.cnt[1] top.serial_mouse_testbench.uut.cnt[0]
+#{top.serial_mouse_testbench.ms_x[7:0]} top.serial_mouse_testbench.ms_x[7] top.serial_mouse_testbench.ms_x[6] top.serial_mouse_testbench.ms_x[5] top.serial_mouse_testbench.ms_x[4] top.serial_mouse_testbench.ms_x[3] top.serial_mouse_testbench.ms_x[2] top.serial_mouse_testbench.ms_x[1] top.serial_mouse_testbench.ms_x[0]
+#{top.serial_mouse_testbench.ms_y[7:0]} top.serial_mouse_testbench.ms_y[7] top.serial_mouse_testbench.ms_y[6] top.serial_mouse_testbench.ms_y[5] top.serial_mouse_testbench.ms_y[4] top.serial_mouse_testbench.ms_y[3] top.serial_mouse_testbench.ms_y[2] top.serial_mouse_testbench.ms_y[1] top.serial_mouse_testbench.ms_y[0]
+@28
+top.serial_mouse_testbench.ms_upd
+@22
+#{top.serial_mouse_testbench.uut.acc_x[7:0]} top.serial_mouse_testbench.uut.acc_x[7] top.serial_mouse_testbench.uut.acc_x[6] top.serial_mouse_testbench.uut.acc_x[5] top.serial_mouse_testbench.uut.acc_x[4] top.serial_mouse_testbench.uut.acc_x[3] top.serial_mouse_testbench.uut.acc_x[2] top.serial_mouse_testbench.uut.acc_x[1] top.serial_mouse_testbench.uut.acc_x[0]
+#{top.serial_mouse_testbench.uut.acc_y[7:0]} top.serial_mouse_testbench.uut.acc_y[7] top.serial_mouse_testbench.uut.acc_y[6] top.serial_mouse_testbench.uut.acc_y[5] top.serial_mouse_testbench.uut.acc_y[4] top.serial_mouse_testbench.uut.acc_y[3] top.serial_mouse_testbench.uut.acc_y[2] top.serial_mouse_testbench.uut.acc_y[1] top.serial_mouse_testbench.uut.acc_y[0]
+@28
+#{top.serial_mouse_testbench.ms_b[2:0]} top.serial_mouse_testbench.ms_b[2] top.serial_mouse_testbench.ms_b[1] top.serial_mouse_testbench.ms_b[0]
+[color] 2
+top.serial_mouse_testbench.mouse_tx
+top.serial_mouse_testbench.mouse_rts
+@420
+top.serial_mouse_testbench.uut.qstate
+top.serial_mouse_testbench.uut.sstate
+@22
+#{top.serial_mouse_testbench.uut.bitcnt[3:0]} top.serial_mouse_testbench.uut.bitcnt[3] top.serial_mouse_testbench.uut.bitcnt[2] top.serial_mouse_testbench.uut.bitcnt[1] top.serial_mouse_testbench.uut.bitcnt[0]
+[color] 1
+#{top.serial_mouse_testbench.uut.mousebuf_x[7:0]} top.serial_mouse_testbench.uut.mousebuf_x[7] top.serial_mouse_testbench.uut.mousebuf_x[6] top.serial_mouse_testbench.uut.mousebuf_x[5] top.serial_mouse_testbench.uut.mousebuf_x[4] top.serial_mouse_testbench.uut.mousebuf_x[3] top.serial_mouse_testbench.uut.mousebuf_x[2] top.serial_mouse_testbench.uut.mousebuf_x[1] top.serial_mouse_testbench.uut.mousebuf_x[0]
+[color] 1
+#{top.serial_mouse_testbench.uut.mousebuf_y[7:0]} top.serial_mouse_testbench.uut.mousebuf_y[7] top.serial_mouse_testbench.uut.mousebuf_y[6] top.serial_mouse_testbench.uut.mousebuf_y[5] top.serial_mouse_testbench.uut.mousebuf_y[4] top.serial_mouse_testbench.uut.mousebuf_y[3] top.serial_mouse_testbench.uut.mousebuf_y[2] top.serial_mouse_testbench.uut.mousebuf_y[1] top.serial_mouse_testbench.uut.mousebuf_y[0]
+@28
+#{top.serial_mouse_testbench.uut.mousebuf_b[2:0]} top.serial_mouse_testbench.uut.mousebuf_b[2] top.serial_mouse_testbench.uut.mousebuf_b[1] top.serial_mouse_testbench.uut.mousebuf_b[0]
+[pattern_trace] 1
+[pattern_trace] 0

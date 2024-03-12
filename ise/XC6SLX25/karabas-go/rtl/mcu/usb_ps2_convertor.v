@@ -64,8 +64,8 @@ module usb_ps2_convertor
     output reg PS2data=0,
     output reg PS2clock=1);
     
-`define CLK_MULT        28571   //(CLK / 1000)
-`define PS2_PRES        1427    //(CLK / 10000 baud / 2)-1
+`define CLK_MULT        50000   //(CLK / 1000)
+`define PS2_PRES        2499    //(CLK / 10000 baud / 2)-1
 
 ////////////////////////////////////////////////////////////
 //                    PS2 CONVERSION                      //
