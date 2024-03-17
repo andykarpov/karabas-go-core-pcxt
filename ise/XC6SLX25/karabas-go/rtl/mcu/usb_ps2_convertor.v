@@ -66,6 +66,8 @@ module usb_ps2_convertor
     
 `define CLK_MULT        50000   //(CLK / 1000)
 `define PS2_PRES        2499    //(CLK / 10000 baud / 2)-1
+`define TYPEMATIC_DELAY 25000 // 25 // 25 000 000 (2 Hz) [23:0]
+`define TYPEMATIC_CPS   5000  // 5  // 5 000 000 (10 Hz) [23:0]
 
 ////////////////////////////////////////////////////////////
 //                    PS2 CONVERSION                      //
