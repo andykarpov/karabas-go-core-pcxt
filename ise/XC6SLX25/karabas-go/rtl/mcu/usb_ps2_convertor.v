@@ -44,7 +44,7 @@ Genera las señales PS/2 a 19200 baudios que simulan las teclas pulsadas/soltada
  -https://crccalc.com/
  -https://www.perytech.com/USB-Enumeration.htm
  
- Modified by Andy Karpov to accept parsed usb reports and transmit them as ps2
+ Modified by Andy Karpov to accept parsed usb reports as ps2 scancodes and transmit them as ps2
 */
 ///////////////////////////////////////////////////////////////////////////
 
@@ -54,13 +54,8 @@ Genera las señales PS/2 a 19200 baudios que simulan las teclas pulsadas/soltada
 
 module usb_ps2_convertor
     (input wire clk,
-	 input wire [7:0] kb_status,
-	 input wire [7:0] kb_dat0,
-	 input wire [7:0] kb_dat1,
-	 input wire [7:0] kb_dat2,
-	 input wire [7:0] kb_dat3,
-	 input wire [7:0] kb_dat4,
-	 input wire [7:0] kb_dat5,	 
+	 input wire [7:0] kb_scancode,
+	 input wire kb_scancode_upd,
     output reg PS2data=0,
     output reg PS2clock=1);
     
@@ -72,44 +67,28 @@ module usb_ps2_convertor
 ////////////////////////////////////////////////////////////
 //                    PS2 CONVERSION                      //
 //////////////////////////////////////////////////////////// 
-`define LEFT_CTRL   0
-`define LEFT_SHIFT  1
-`define LEFT_ALT    2
-`define LEFT_GUI    3
-`define RIGHT_CTRL  4
-`define RIGHT_SHIFT 5
-`define RIGHT_ALT   6
-`define RIGHT_GUI   7
-`define Release_Key 8'hF0
 `define StopBit     1'b1
 `define StartBit    1'b0
 `define NextChar    PS2_signal[8:1]
 
 reg PS2Busy=0;
-reg [7:0]Cpy_Rmodifiers=8'h00;
-reg [32:0]PS2_signal=0;
+reg [10:0]PS2_signal=0;
 reg [6:0]PS2TX_STM=0;
 reg [5:0]PS2_STM=0;
 reg PS2_buffer_busy=0;
 reg ParityBit=0;
 reg [$clog2(`PS2_PRES)-1:0]PS2_Prescaler=0;
-reg [7:0]Rmodifiers=0;
-reg [7:0]PrevRmodifiers=0;
-reg [47:0]RollOver=0;
-reg [47:0]PrevRollOver=0;
-reg [47:0]Cpy_RollOver=0;
-reg AddKey=0;
-reg SendKey=0;
+
+reg prev_kb_scancode_upd=0;
+reg [7:0] prev_kb_scancode;
 
 always @(posedge clk)begin
     if (StartTimer==1) StartTimer<=0;
 	 
 	 if (PS2Busy == 0) begin
-		 Rmodifiers <= kb_status;
-		 RollOver <= {kb_dat5, kb_dat4, kb_dat3, kb_dat2, kb_dat1, kb_dat0};
-		 if ((PrevRollOver != RollOver) || (PrevRmodifiers != Rmodifiers)) begin
-			PrevRollOver <= RollOver;
-			PrevRmodifiers <= Rmodifiers;
+		 if (prev_kb_scancode_upd != kb_scancode_upd) begin
+			prev_kb_scancode_upd <= kb_scancode_upd;
+			prev_kb_scancode <= kb_scancode;
 			PS2Busy <= 1;
 		 end
 	 end
@@ -119,144 +98,8 @@ always @(posedge clk)begin
 ////////////////////////////////////////////////////////////
     if (PS2_buffer_busy==0)begin
         if (PS2Busy==1) begin
-            case (PS2_STM)
-                1,3,5,7,9,11,13,15: begin
-                    PS2_STM<=PS2_STM+1;
-                    Cpy_Rmodifiers<={Cpy_Rmodifiers[0],Cpy_Rmodifiers[7:1]};
-                    Rmodifiers<={Rmodifiers[0],Rmodifiers[7:1]};
-                end
-                0: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin    
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'h00F014);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h000014);
-                        end
-                    end
-                end
-                2: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'h00F012);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h000012);
-                        end
-                    end
-                end
-                4: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'h00F011);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h000011);
-                        end
-                    end
-                end
-                6: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'hE0F01F);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h00E01F);
-                        end
-                    end
-                end
-                8: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'hE0F014);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h00E014);
-                        end
-                    end
-                end
-                10: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'h00F059);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h000059);
-                        end
-                    end
-                end
-                12: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'hE0F011);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h00E011);
-                        end
-                    end
-                end
-                14: begin
-                    PS2_STM<=PS2_STM+1;
-                    if(Cpy_Rmodifiers[0]!=Rmodifiers[0])begin
-                        Cpy_Rmodifiers[0]<=Rmodifiers[0];
-                        if (Cpy_Rmodifiers[0]==1) begin
-                            Add_PS2_Buffer(24'hE0F027);
-                        end
-                        else begin
-                            Add_PS2_Buffer(24'h00E027);
-                        end
-                    end
-                end
-                17,20,23,26,29,32:begin PS2_STM<=PS2_STM+1;end //Wait for memory
-                16,19,22,25,28,31:begin
-                    PS2_STM<=PS2_STM+1;
-                    if (Cpy_RollOver[7:0]!=RollOver[7:0])begin
-                        SendKey<=1;
-                        if (Cpy_RollOver[7:0]==0) begin// Add key
-                            Cpy_RollOver[7:0]<=RollOver[7:0];
-                            PS2MemoryAdd<=RollOver[7:0];
-                            AddKey<=1;
-                        end
-                        else begin //Remove key
-                            Cpy_RollOver<={8'h00,Cpy_RollOver[47:8]};
-                            PS2MemoryAdd<=Cpy_RollOver[7:0];
-                            AddKey<=0;
-                        end
-                    end
-                    else SendKey<=0;
-                end
-                18,21,24,27,30,33:begin
-                    PS2_STM<=PS2_STM+1;
-                    Cpy_RollOver<={Cpy_RollOver[7:0],Cpy_RollOver[47:8]};
-                    RollOver<={RollOver[7:0],RollOver[47:8]};
-                    if (SendKey==1 && PS2Code[7:0]!=0)begin //Invalid keys
-                    if (AddKey==1)begin
-                        Add_PS2_Buffer({8'h0,PS2Code});
-                    end
-                    else begin
-                        Add_PS2_Buffer({PS2Code[15:8],8'hF0,PS2Code[7:0]});
-                    end
-                    end
-                end
-                34: begin
-                    PS2_STM<=0;
-                    PS2Busy<=0;
-                end
-            endcase
+				Add_PS2_Buffer(prev_kb_scancode);
+			   PS2Busy<=0;
          end
     end
 ////////////////////////////////////////////////////////////
@@ -317,24 +160,11 @@ always @(posedge clk)begin
     end 
 end
 
-////////////////////////////////////////////////////////////
-//                    PS2 MEMORY TABLE                    //
-////////////////////////////////////////////////////////////  
-reg [15:0]PS2Memory[0:127];
-reg [6:0]PS2MemoryAdd=0;
-reg [15:0]PS2Code=0;
-initial 
-	$readmemh ("usb_ps2_convertor.txt",PS2Memory);
-    
-always @(posedge clk)begin
-    PS2Code<=PS2Memory[PS2MemoryAdd];
-end    
-
-task Add_PS2_Buffer(input [23:0]sig);
+task Add_PS2_Buffer(input [7:0]sig);
     begin
     PS2_buffer_busy<=1;
     PS2_signal<=
-        {`StopBit,`StopBit,sig[7:0],`StartBit,`StopBit,`StopBit,sig[15:8],`StartBit,`StopBit,`StopBit,sig[23:16],`StartBit};
+        {`StopBit,`StopBit,sig[7:0],`StartBit};
     end
 endtask
 

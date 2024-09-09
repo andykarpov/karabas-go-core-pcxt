@@ -42,10 +42,8 @@ module PERIPHERALS (
 	output	wire	[7:0]			port_c_out,
 	output	wire	[7:0]			port_c_io,
 `ifdef EMULATE_PS2
-	input		wire					ps2_clock,
-	input		wire					ps2_data,
-	output	reg					ps2_clock_out,
-	output	wire					ps2_data_out,
+	input		wire	[7:0]			kb_scancode,
+	input		wire					kb_scancode_upd,	
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
 `else
@@ -328,29 +326,13 @@ module PERIPHERALS (
 `ifdef EMULATE_PS2
 	KFPS2KB_direct u_KFPS2KB(
 		.clock(clock),
-		.peripheral_clock(peripheral_clock),
 		.reset(reset),
-		.device_clock(ps2_clock | lock_recv_clock),
+		.kb_scancode(kb_scancode),
+		.kb_scancode_upd(kb_scancode_upd),
 		.reset_keybord(~prev_ps2_reset_n & ps2_reset_n),
-		.device_data(ps2_data),
 		.irq(keybord_irq),
 		.keycode(keycode),
-		.clear_keycode(clear_keycode),
-		.swap_video(),
-		.turbo_mode(),		
-		.initial_video(1'b0),
-		.initial_turbo(1'b0)
-	);
-	KFPS2KB_Send_Data u_KFPS2KB_Send_Data(
-		.clock(clock),
-		.peripheral_clock(peripheral_clock),
-		.reset(reset),
-		.device_clock(ps2_clock),
-		.device_clock_out(ps2_send_clock),
-		.device_data_out(ps2_data_out),
-		.sending_data_flag(lock_recv_clock),
-		.send_request(1'b0),
-		.send_data(8'hff)
+		.clear_keycode(clear_keycode)
 	);
 `else
 	KFPS2KB_direct u_KFPS2KB(
@@ -636,7 +618,7 @@ module PERIPHERALS (
 	wire dbl_hsync;
 	wire [3:0] video;
 	wire [3:0] dbl_video;
-	assign VGA_HSYNC = scandoubler ? dbl_hsync : hsync;
+	assign VGA_HSYNC = scandoubler ? ~dbl_hsync : hsync;
 	assign video_cga = scandoubler ? dbl_video : video;
 
 	cga cga1(

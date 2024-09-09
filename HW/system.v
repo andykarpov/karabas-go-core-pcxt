@@ -20,8 +20,8 @@ module system(
 	output	wire					VGA_VSYNC,
 
 `ifdef EMULATE_PS2
-	input		wire					clkps2,
-	input		wire					dataps2,
+	input		wire [7:0]			kb_scancode,
+	input		wire					kb_scancode_upd,
 	input    wire              serial_mouse_tx,
 	output   wire              serial_mouse_rts,	
 `else
@@ -108,10 +108,10 @@ always @(posedge clk_4_77)
 //assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
 //assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
 
-always @(posedge peripheral_clock) begin
-	ps2_clock_in <= clkps2;
-	ps2_data_in <= dataps2;
-end
+//always @(posedge peripheral_clock) begin
+//	ps2_clock_in <= clkps2;
+//	ps2_data_in <= dataps2;
+//end
 `else
 assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
 assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
@@ -366,10 +366,8 @@ reg splash_status = 1'b0;
 		  .port_c_in                          (port_c_in),
 	     .speaker_out                        (speaker_out), 
 `ifdef EMULATE_PS2
-		  .ps2_clock                          (ps2_clock_in),
-	     .ps2_data                           (ps2_data_in),
-	     .ps2_clock_out                      (ps2_clock_out),
-	     .ps2_data_out                       (ps2_data_out),
+		  .kb_scancode                        (kb_scancode),
+	     .kb_scancode_upd                    (kb_scancode_upd),
 		  .serial_mouse_tx                    (serial_mouse_tx),
 		  .serial_mouse_rts                   (serial_mouse_rts),
 `else		  

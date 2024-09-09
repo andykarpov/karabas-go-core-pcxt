@@ -62,10 +62,8 @@ module CHIPSET (
 	output	wire	[7:0]			port_c_out,
 	output	wire	[7:0]			port_c_io,
 `ifdef EMULATE_PS2
-	input		wire					ps2_clock,
-	input		wire					ps2_data,
-	output	wire					ps2_clock_out,
-	output	wire					ps2_data_out,
+	input		wire [7:0]			kb_scancode,
+	input		wire					kb_scancode_upd,
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
 `else
@@ -259,10 +257,8 @@ module CHIPSET (
 		.port_c_out(port_c_out),
 		.port_c_io(port_c_io),
 `ifdef EMULATE_PS2
-		.ps2_clock(ps2_clock),
-		.ps2_data(ps2_data),
-		.ps2_clock_out(ps2_clock_out),
-		.ps2_data_out(ps2_data_out),
+		.kb_scancode(kb_scancode),
+		.kb_scancode_upd(kb_scancode_upd),
 		.serial_mouse_tx(serial_mouse_tx),
 		.serial_mouse_rts(serial_mouse_rts),
 `else

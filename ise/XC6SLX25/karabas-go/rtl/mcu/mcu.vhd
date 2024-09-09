@@ -36,6 +36,10 @@ entity mcu is
 	 KB_DAT4   : out std_logic_vector(7 downto 0) := "00000000";
 	 KB_DAT5   : out std_logic_vector(7 downto 0) := "00000000";
 
+	 -- ps/2 scancode
+	 KB_SCANCODE : out std_logic_vector(7 downto 0) := "00000000";
+	 KB_SCANCODE_UPD : buffer std_logic := '0';
+	 
 	 -- joysticks
 	 JOY_L			: out std_logic_vector(12 downto 0) := "000000000000";
 	 JOY_R			: out std_logic_vector(12 downto 0) := "000000000000";
@@ -89,6 +93,7 @@ architecture rtl of mcu is
 	constant CMD_ROMBANK    : std_logic_vector(7 downto 0) := x"06";
 	constant CMD_ROMDATA    : std_logic_vector(7 downto 0) := x"07";
 	constant CMD_ROMLOADER  : std_logic_vector(7 downto 0) := x"08";
+	constant CMD_PS2_SCANCODE : std_logic_vector(7 downto 0) := x"0B";
 
 	-- 11, 12 - usb gamepad, joy : todo
 
@@ -287,6 +292,16 @@ begin
 					when CMD_UART =>
 						UART_RX_DATA <= spi_do(7 downto 0);
 						UART_RX_IDX <= spi_do(15 downto 8);
+						
+					-- ps/2 / xt scancode from mcu
+					when CMD_PS2_SCANCODE => 
+						case spi_do(15 downto 8) is
+							-- ps/2 scancode sequence
+							when x"00" => null; 
+							-- xt scancode (1 byte without extended scancodes)
+							when x"01" => KB_SCANCODE <= spi_do(7 downto 0); KB_SCANCODE_UPD <= not(KB_SCANCODE_UPD);
+							when others => null;
+						end case;
 
 					-- init start
 					when CMD_INIT_START => BUSY <= '1';

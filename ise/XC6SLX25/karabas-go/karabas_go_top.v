@@ -191,6 +191,8 @@
 	wire [15:0] audio_l, audio_r;
 	wire ps2_clk, ps2_dat;
 	wire kb_swap_video, kb_turbo_mode;
+	wire [7:0] hid_kb_scancode;
+	wire hid_kb_scancode_upd;	
 
 	system sys_inst
 	(
@@ -208,8 +210,8 @@
 		.SRAM_DATA(MD[7:0]),
 		.SRAM_WE_n(MWR_N[0]),
 		
-		.clkps2(ps2_clk),
-		.dataps2(ps2_dat),
+		.kb_scancode(hid_kb_scancode),
+		.kb_scancode_upd(hid_kb_scancode_upd),
 		
 		.serial_mouse_tx(serial_mouse_tx),
 		.serial_mouse_rts(serial_mouse_rts),
@@ -267,6 +269,9 @@
 		.KB_DAT4(hid_kb_dat4),
 		.KB_DAT5(hid_kb_dat5),
 		
+		.KB_SCANCODE(hid_kb_scancode),
+		.KB_SCANCODE_UPD(hid_kb_scancode_upd),
+		
 		.JOY_L(joy_l),
 		.JOY_R(joy_r),
 		
@@ -298,17 +303,6 @@
 		.CLK(clk_50),
 		.RESET(areset),
 
-		.KB_STATUS(hid_kb_status),
-		.KB_DAT0(hid_kb_dat0),
-		.KB_DAT1(hid_kb_dat1),
-		.KB_DAT2(hid_kb_dat2),
-		.KB_DAT3(hid_kb_dat3),
-		.KB_DAT4(hid_kb_dat4),
-		.KB_DAT5(hid_kb_dat5),	
-
-		.PS2_CLK(ps2_clk),
-		.PS2_DAT(ps2_dat),
-		
 		.MS_X(ms_x),
 		.MS_Y(ms_y),
 		.MS_B(ms_b),
