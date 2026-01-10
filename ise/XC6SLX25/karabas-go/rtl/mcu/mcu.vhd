@@ -77,6 +77,9 @@ entity mcu is
     -- osd command
 	 OSD_COMMAND: out std_logic_vector(15 downto 0);
 	 
+	 HWID : out std_logic_vector(7 downto 0) := (others => '0');
+	 DVI_ONLY : out std_logic := '0';
+	 
 	 -- busy
 	 BUSY: buffer std_logic := '1'
 	 
@@ -98,6 +101,7 @@ architecture rtl of mcu is
 	-- 11, 12 - usb gamepad, joy : todo
 
 	constant CMD_OSD 			: std_logic_vector(7 downto 0) := x"20";
+	constant CMD_HW_SETUP	: std_logic_vector(7 downto 0) := x"F9";
 	constant CMD_RTC 			: std_logic_vector(7 downto 0) := x"FA";
 	constant CMD_FLASHBOOT  : std_logic_vector(7 downto 0) := x"FB";
 	constant CMD_UART			: std_logic_vector(7 downto 0) := x"FC";
@@ -300,6 +304,14 @@ begin
 							when x"00" => null; 
 							-- xt scancode (1 byte without extended scancodes)
 							when x"01" => KB_SCANCODE <= spi_do(7 downto 0); KB_SCANCODE_UPD <= not(KB_SCANCODE_UPD);
+							when others => null;
+						end case;
+
+					-- hw setup
+					when CMD_HW_SETUP => 
+						case spi_do(15 downto 8) is 
+							when x"00" => HWID <= spi_do(7 downto 0);
+							when x"01" => DVI_ONLY <= spi_do(0);
 							when others => null;
 						end case;
 

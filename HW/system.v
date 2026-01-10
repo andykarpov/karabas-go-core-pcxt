@@ -18,6 +18,7 @@ module system(
 	output	wire	[5:0]			VGA_B,
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
+	output   wire              VGA_BLANK,
 
 `ifdef EMULATE_PS2
 	input		wire [7:0]			kb_scancode,
@@ -312,6 +313,9 @@ reg splash_status = 1'b0;
 	assign AUD_R = sndsign;
 `endif		
 		
+	wire HBlank, VBlank;
+	assign VGA_BLANK = HBlank || VBlank;
+		
    CHIPSET u_CHIPSET (
         .clock                              (clk_chipset),
         .cpu_clock                          (clk_cpu),
@@ -334,8 +338,8 @@ reg splash_status = 1'b0;
         .VGA_B                              (VGA_B),
         .VGA_HSYNC                          (VGA_HSYNC),
         .VGA_VSYNC                          (VGA_VSYNC),
-//		  .VGA_HBlank	  				           (HBlank),
-//		  .VGA_VBlank							     (VBlank),
+		  .VGA_HBlank	  				           (HBlank),
+		  .VGA_VBlank							     (VBlank),
 //      .address                            (address),
         .address_ext                        (20'hFFFFF),
 //      .address_direction                  (address_direction),
