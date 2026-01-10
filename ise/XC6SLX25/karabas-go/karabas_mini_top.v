@@ -353,7 +353,7 @@ hdmi_top hdmi_top(
 	.ds80				(1'b0),
 	.reset			(areset || kb_reset),
 
-	.vga_rgb			({r, 2'b00, g, 2'b00, b, 2'b00}),
+	.vga_rgb			(vga_blank ? 24'b0 : {r, 2'b00, g, 2'b00, b, 2'b00}),
 	.vga_hs			(vga_hs),
 	.vga_vs			(vga_vs),
 	.vga_de			(~vga_blank),

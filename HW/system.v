@@ -314,7 +314,6 @@ reg splash_status = 1'b0;
 `endif		
 		
 	wire HBlank, VBlank;
-	assign VGA_BLANK = HBlank || VBlank;
 		
    CHIPSET u_CHIPSET (
         .clock                              (clk_chipset),
@@ -338,6 +337,7 @@ reg splash_status = 1'b0;
         .VGA_B                              (VGA_B),
         .VGA_HSYNC                          (VGA_HSYNC),
         .VGA_VSYNC                          (VGA_VSYNC),
+		  .VGA_BLANK								  (VGA_BLANK),
 		  .VGA_HBlank	  				           (HBlank),
 		  .VGA_VBlank							     (VBlank),
 //      .address                            (address),

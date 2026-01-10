@@ -12,6 +12,7 @@ module cga_scandoubler(
     input line_reset,
     input[3:0] video,
     output reg dbl_hsync,
+	 output reg dbl_hblank,
     output[3:0] dbl_video
     );
 
@@ -61,6 +62,15 @@ module cga_scandoubler(
             if (hcount_fast == (10'd720 + 10'd160)) begin
                 dbl_hsync <= 0;
             end
+				
+				// Fixed doubled hblank
+				if (hcount_fast == 10'd640) begin
+					dbl_hblank <= 1;
+				end
+				if (hcount_fast == 10'd0) begin
+					dbl_hblank <= 0;
+				end
+				
         end
     end
 

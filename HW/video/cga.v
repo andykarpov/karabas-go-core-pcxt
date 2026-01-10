@@ -33,6 +33,7 @@ module cga(
 	output	wire					hsync,
 	output	wire					hblank,
 	output	wire					dbl_hsync,
+	output   wire              dbl_hblank,
 	output	wire					vsync,
 	output	wire					vblank,
 	output	wire					de_o,
@@ -372,6 +373,7 @@ module cga(
         .line_reset(line_reset),
         .video(video),		  
         .dbl_hsync(dbl_hsync),
+		  .dbl_hblank(dbl_hblank),
         .dbl_video(dbl_video)
     );	 
 
