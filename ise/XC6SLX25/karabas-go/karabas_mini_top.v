@@ -185,7 +185,7 @@ assign areset = ~locked;
 //---------- PCXT ------------
 
 wire [5:0] r, g, b;
-wire vga_hs, vga_vs, vga_blank;
+wire vga_hs, vga_vs;
 wire serial_mouse_tx, serial_mouse_rts;
 wire [15:0] audio_l, audio_r;
 wire ps2_clk, ps2_dat;
@@ -204,7 +204,6 @@ system sys_inst
 	.VGA_B(b),
 	.VGA_HSYNC(vga_hs),
 	.VGA_VSYNC(vga_vs),
-	.VGA_BLANK(vga_blank),
 	
 	.SRAM_ADDR(MA),
 	.SRAM_DATA(MD[7:0]),
@@ -247,6 +246,7 @@ wire [15:0] softsw_command, osd_command;
 wire mcu_busy;
 wire [7:0] hwid;
 wire dvi_only;
+wire [10:0] hdmi_width, hdmi_height;
 
 mcu mcu(
 	.CLK(clk_50),
@@ -299,6 +299,9 @@ mcu mcu(
 	.SOFTSW_COMMAND(softsw_command),	
 	.OSD_COMMAND(osd_command),
 	
+	.DEBUG_ADDR("00000" & hdmi_width),
+	.DEBUG_DATA("00000" & hdmi_height),
+	
 	.BUSY(mcu_busy)
 );
 
@@ -346,17 +349,35 @@ assign FT_CLK_OUT = 1'b0;
 
 wire [15:0] audio_mix_l, audio_mix_r;
 
+// hdmi frame converter
+wire [23:0] hdmi_rgb;
+wire hdmi_hs, hdmi_vs, hdmi_blank;
+hdmi_frame hdmi_frame(
+	.clk_rgb			(clk_28_571),
+	.clk_vga			(clk_28_571),
+	.reset			(areset),
+	.rgb				({r,g,b}),
+	.hs				(vga_hs),
+	.vs				(vga_vs),
+	.hdmi_rgb		(hdmi_rgb),
+	.hdmi_hs			(hdmi_hs),
+	.hdmi_vs			(hdmi_vs),
+	.hdmi_blank		(hdmi_blank),
+	.width			(hdmi_width),
+	.height			(hdmi_height)
+);
+
 // hdmi
 wire [7:0] hdmi_freq;
 hdmi_top hdmi_top(
 	.clk				(clk_28_571),
-	.ds80				(1'b0),
+	.ds80				(1'b1),
 	.reset			(areset || kb_reset),
 
-	.vga_rgb			(vga_blank ? 24'b0 : {r, 2'b00, g, 2'b00, b, 2'b00}),
-	.vga_hs			(vga_hs),
-	.vga_vs			(vga_vs),
-	.vga_de			(~vga_blank),
+	.vga_rgb			(hdmi_rgb),
+	.vga_hs			(hdmi_hs),
+	.vga_vs			(hdmi_vs),
+	.vga_de			(~hdmi_blank),
 
 	.audio_en		(~dvi_only),
 	.audio_l			(audio_mix_l),

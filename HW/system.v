@@ -18,7 +18,6 @@ module system(
 	output	wire	[5:0]			VGA_B,
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
-	output   wire              VGA_BLANK,
 
 `ifdef EMULATE_PS2
 	input		wire [7:0]			kb_scancode,
@@ -337,7 +336,6 @@ reg splash_status = 1'b0;
         .VGA_B                              (VGA_B),
         .VGA_HSYNC                          (VGA_HSYNC),
         .VGA_VSYNC                          (VGA_VSYNC),
-		  .VGA_BLANK								  (VGA_BLANK),
 		  .VGA_HBlank	  				           (HBlank),
 		  .VGA_VBlank							     (VBlank),
 //      .address                            (address),

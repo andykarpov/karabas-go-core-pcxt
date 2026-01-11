@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`default_nettype none
+//`default_nettype none
 
 /*
  HDMI PLL chain to produce a pixelclock as well as x5 clock pair for hdmi serializer based on 

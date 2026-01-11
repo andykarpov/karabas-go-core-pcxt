@@ -19,7 +19,6 @@ module PERIPHERALS (
 	output	wire	[5:0]			VGA_B,
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
-	output   wire              VGA_BLANK,
 	output	wire					VGA_HBlank,
 	output	wire					VGA_VBlank,
 	input		wire	[19:0]		address,
@@ -616,12 +615,11 @@ module PERIPHERALS (
 	wire isa_op_enable;
 	wire scandoubler;
 	wire hsync;
-	wire dbl_hsync, dbl_hblank;
+	wire dbl_hsync;
 	wire [3:0] video;
 	wire [3:0] dbl_video;
 	assign VGA_HSYNC = scandoubler ? ~dbl_hsync : hsync;
 	assign video_cga = scandoubler ? dbl_video : video;
-	assign VGA_BLANK = scandoubler ? (dbl_hblank || VGA_VBlank) : (VGA_HBlank || VGA_VBlank);
 
 	cga cga1(
 		.clk(clk_vga_cga),
@@ -649,7 +647,6 @@ module PERIPHERALS (
 		.vram_addr(CGA_VRAM_ADDR),
 		.hsync(hsync),
 		.dbl_hsync(dbl_hsync),
-		.dbl_hblank(dbl_hblank),
 		.hblank(VGA_HBlank),
 		.vsync(VGA_VSYNC),
 		.vblank(VGA_VBlank),

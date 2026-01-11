@@ -301,7 +301,7 @@
     </file>
     <file xil_pn:name="karabas_mini_top.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="100"/>
-      <association xil_pn:name="Implementation" xil_pn:seqID="111"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="112"/>
     </file>
     <file xil_pn:name="karabas_mini.ucf" xil_pn:type="FILE_UCF">
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
@@ -320,7 +320,7 @@
     </file>
     <file xil_pn:name="../../../HW/common/dcm.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="143"/>
-      <association xil_pn:name="Implementation" xil_pn:seqID="110"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="111"/>
     </file>
     <file xil_pn:name="../../../HW/uart/slib_clock_div.vhd" xil_pn:type="FILE_VHDL">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="90"/>
@@ -384,7 +384,7 @@
     </file>
     <file xil_pn:name="../../../HW/system.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="108"/>
-      <association xil_pn:name="Implementation" xil_pn:seqID="109"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="110"/>
     </file>
     <file xil_pn:name="rtl/mcu/hid_parser.vhd" xil_pn:type="FILE_VHDL">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="111"/>
@@ -459,6 +459,10 @@
       <association xil_pn:name="Implementation" xil_pn:seqID="86"/>
     </file>
     <file xil_pn:name="rtl/dac/dac.vhd" xil_pn:type="FILE_VHDL">
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="176"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="109"/>
+    </file>
+    <file xil_pn:name="rtl/hdmi/hdmi_frame.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="176"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="108"/>
     </file>
