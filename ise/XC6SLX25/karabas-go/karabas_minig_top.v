@@ -19,32 +19,30 @@
 --                                                                                 #             # #             # 
 -- https://github.com/andykarpov/karabas-go                                        ############### ############### 
 --
--- FPGA PCXT core for Karabas-Go Mini
+-- FPGA PCXT core for Karabas-Go Mini rev.G
 --
 -- @author Andy Karpov <andy.karpov@gmail.com>
 -- EU, 2026
 ------------------------------------------------------------------------------------------------------------------*/
 
-// Warning! HW_ID2 macros defined in the Synthesize - XST process properties!
+// Warning! HW_ID3 macros defined in the Synthesize - XST process properties!
 
-module karabas_mini_top (
-	//------------------ global clock --------
+module karabas_minig_top (
+	//---------------------------
 	input wire 				CLK_50MHZ,
 
-	//------------------ esp8266 uart --------
+	//---------------------------
 	inout wire 				UART_RX,
 	inout wire 				UART_TX,
 	inout wire 				UART_CTS,
-	inout wire 				ESP_RESET_N,
-	inout wire 				ESP_BOOT_N,
 
-	//------------------ sram ----------------
+	//---------------------------
 	output wire [20:0] 	MA,
 	inout wire [15:0] 	MD,
 	output wire [1:0] 	MWR_N,
 	output wire [1:0] 	MRD_N,
 
-	//------------------ sdram ---------------
+	//---------------------------
 	output wire [1:0] 	SDR_BA,
 	output wire [12:0] 	SDR_A,
 	output wire 			SDR_CLK,
@@ -54,38 +52,34 @@ module karabas_mini_top (
 	output wire 			SDR_RAS_N,
 	inout wire [15:0] 	SDR_DQ,
 
-	//------------------ sd2 -----------------
+	//---------------------------
 	output wire 			SD_CS_N,
 	output wire 			SD_CLK,
 	inout wire 				SD_DI,
 	inout wire 				SD_DO,
 	input wire 				SD_DET_N,
 
-	//------------------ ft812 rgb + sync ----
+	//---------------------------
 	input wire [7:0] 		VGA_R,
 	input wire [7:0] 		VGA_G,
 	input wire [7:0] 		VGA_B,
 	input wire 				VGA_HS,
 	input wire 				VGA_VS,
 
-	//------------------ dvi / hdmi ----------
 	output wire [3:0] 	TMDS_P,
 	output wire [3:0] 	TMDS_N,
 
-	//------------------ ft812 spi and ctl ---
+	//---------------------------
 	output wire 			FT_SPI_CS_N,
 	output wire 			FT_SPI_SCK,
 	input wire 				FT_SPI_MISO,
 	output wire 			FT_SPI_MOSI,
 	input wire 				FT_INT_N,
 	input wire 				FT_CLK,
-	input wire 				FT_AUDIO,
 	input wire 				FT_DE,
-	input wire 				FT_DISP,
-	output wire 			FT_RESET,
 	output wire 			FT_CLK_OUT,
 
-	//------------------ cf card -------------
+	//---------------------------
 	output wire [2:0] 	WA,
 	output wire [1:0] 	WCS_N,
 	output wire 			WRD_N,
@@ -93,31 +87,38 @@ module karabas_mini_top (
 	output wire 			WRESET_N,
 	inout wire [15:0] 	WD,
 
-	//------------------ analog in/out -------	
+	//---------------------------	
 	output wire 			TAPE_OUT,
 	input wire 				TAPE_IN,
-	output wire 			AUDIO_L,
-	output wire 			AUDIO_R,
+	
+   //---------------------------
+	output wire          DAC_BCK,
+	output wire          DAC_WS,
+	output wire          DAC_DAT,
 
-	//------------------ adc -----------------
+	//---------------------------
 	output wire 			ADC_CLK,
 	inout wire 				ADC_BCK,
 	inout wire 				ADC_LRCK,
 	input wire 				ADC_DOUT,
+	
+	//---------------------------
+	output wire          ESP32_SPI_CS_N,
+	input wire           ESP32_PCM_BCK,
+	input wire           ESP32_PCM_RLCK,
+	input wire           ESP32_PCM_DAT,
 
-	//------------------ mcu spi -------------
+	//---------------------------
 	input wire 				MCU_CS_N,
 	input wire 				MCU_SCK,
 	input wire 				MCU_MOSI,
 	output wire 			MCU_MISO,
-	input wire [3:0] 		MCU_IO,
+	input wire [5:0] 		MCU_IO,
 
-	//------------------ midi ----------------
+	//---------------------------
 	output wire 			MIDI_TX,
-	output wire 			MIDI_CLK,
-	output wire 			MIDI_RESET_N,
 
-	//------------------ optional flash ------
+	//---------------------------
 	output wire 			FLASH_CS_N,
 	input wire  			FLASH_DO,
 	output wire 			FLASH_DI,
@@ -127,8 +128,7 @@ module karabas_mini_top (
 );
 
 // unused signals yet
-assign ESP_RESET_N 	= 1'bZ;
-assign ESP_BOOT_N 	= 1'bZ;
+
 assign FT_SPI_CS_N = 1'b1;
 assign FT_SPI_SCK = 1'b0;
 assign FT_SPI_MOSI = 1'b0;
@@ -147,10 +147,9 @@ assign FLASH_CS_N = 1'b1;
 assign FLASH_WP_N = 1'b1;
 assign FLASH_HOLD_N = 1'b1;
 assign FLASH_SCK = 1'b1;
-assign MIDI_RESET_N = 1'b1;
 assign FLASH_DI = 1'b1;
-assign FT_RESET = 1'b1;
 assign MIDI_TX = 1'b1;
+assign ESP32_SPI_CS_N = 1'b1;
 
 `ifndef PHYSICAL_IDE
 	assign WA = 3'b000;
@@ -339,10 +338,6 @@ assign btn_reset_n = ~kb_reset & ~mcu_busy;
 
 // ----
 
-// midi clk 12mhz out
-//ODDR2 u_midi_clk (.Q(MIDI_CLK), .C0(clk_12mhz), .C1(~clk_12mhz), .CE(1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
-assign MIDI_CLK = 1'b0;
-
 // ft clk 8mhz out
 //ODDR2 u_ft_clk (.Q(FT_CLK_OUT), .C0(clk_8mhz), .C1(~clk_8mhz), .CE(1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
 assign FT_CLK_OUT = 1'b0;
@@ -390,41 +385,6 @@ hdmi_top hdmi_top(
 	.clk_pix			()
 );
 
-//------- Sigma-Delta DAC ---------
-dac dac_l(
-	.I_CLK			(clk_28_571),
-	.I_RESET			(areset),
-	.I_DATA			({2'b00, !audio_mix_l[15], audio_mix_l[14:4], 2'b00}),
-	.O_DAC			(AUDIO_L)
-);
-
-dac dac_r(
-	.I_CLK			(clk_28_571),
-	.I_RESET			(areset),
-	.I_DATA			({2'b00, !audio_mix_r[15], audio_mix_r[14:4], 2'b00}),
-	.O_DAC			(AUDIO_R)
-);
-
-// ------- PCM1808 ADC ---------
-/*wire signed [23:0] adc_l, adc_r;
-wire adc_clk_int = clk_28_571;
-
-i2s_transceiver adc(
-	.reset_n			(~areset),
-	.mclk				(adc_clk_int),
-	.sclk				(ADC_BCK),
-	.ws				(ADC_LRCK),
-	.sd_tx			(),
-	.sd_rx			(ADC_DOUT),
-	.l_data_tx		(24'b0),
-	.r_data_tx		(24'b0),
-	.l_data_rx		(adc_l),
-	.r_data_rx		(adc_r)
-);
-
-// ------- ADC_CLK output buf
-ODDR2 oddr_adc2(.Q(ADC_CLK), .C0(adc_clk_int), .C1(~adc_clk_int), .CE(1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
-*/
 assign ADC_CLK = 1'b0;
 assign ADC_BCK = 1'b0;
 assign ADC_LRCK = 1'b0;
@@ -432,5 +392,16 @@ assign ADC_LRCK = 1'b0;
 // ------- audio mix
 assign audio_mix_l = audio_l;
 assign audio_mix_r = audio_r;
+
+// ------- DAC --------------
+PCM5102 #(.DAC_CLK_DIV_BITS(2)) PCM5102(
+	.clk				(clk_28_571),
+	.reset			(areset),
+	.left				(audio_mix_l),
+	.right			(audio_mix_r),
+	.din				(DAC_DAT),
+	.bck				(DAC_BCK),
+	.lrck				(DAC_WS)
+);
 
 endmodule
