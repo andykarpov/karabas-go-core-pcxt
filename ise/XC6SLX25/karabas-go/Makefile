@@ -56,7 +56,7 @@ karabas_$(1)_top.bin: karabas_$(1)_top.ngc karabas_$(1).ucf karabas_$(1)_top.ut
 	$(XIL) trce -intstyle ise -v 3 -s 2 -n 3 -fastpaths -xml karabas_$(1)_top.twx karabas_$(1)_top.ncd -o karabas_$(1)_top.twr karabas_$(1)_top.pcf -ucf karabas_$(1).ucf
 	$(XIL) bitgen -intstyle ise -f karabas_$(1)_top.ut karabas_$(1)_top.ncd
 
-$(KG_$(1)): karabas_$(1)_top.bin $(JSON_$(1))
+$(KG_$(1)): karabas_$(1)_top.bin $(JSON_$(1)) $(wildcard rom/*.rom)
 	python3 make_core.py $(JSON_$(1)) $$@
 
 $(1): $(KG_$(1))

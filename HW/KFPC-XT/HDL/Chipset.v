@@ -122,6 +122,11 @@ module CHIPSET (
    input    wire              spi_miso,
 `endif
 
+`ifdef ROM_LOADER
+   input    wire              rom_wr,
+   input    wire  [14:0]      rom_addr,
+   input    wire  [7:0]       rom_data,
+`endif
 `ifdef FLOPPY
    input    wire  [3:0]       fdd_mgmt_address,
    input    wire              fdd_mgmt_fddn,
@@ -337,6 +342,11 @@ module CHIPSET (
       .spi_miso(spi_miso),
 `endif
 
+`ifdef ROM_LOADER
+		.rom_wr(rom_wr),
+		.rom_addr(rom_addr),
+		.rom_data(rom_data),
+`endif
 `ifdef FLOPPY
 		.fdd_dma_req(fdd_dma_req),
 		.fdd_dma_ack(~dma_acknowledge_n[2]),

@@ -67,6 +67,12 @@ module system(
 	// splash screen; the other boards have no such input
 	,input		wire					reset_in
 `endif
+`ifdef ROM_LOADER
+	// karabas: the rom loader of the mcu (BIOS / XTIDE BIOS, in clk_chipset)
+	,input    wire              rom_wr
+	,input    wire  [14:0]      rom_addr
+	,input    wire  [7:0]       rom_data
+`endif
 `ifdef FLOPPY
 	// karabas: the management bus of the floppy controller (floppy.v): the disks of drives A, B
 	,input    wire  [3:0]       fdd_mgmt_address
@@ -449,6 +455,11 @@ reg splash_status = 1'b0;
 		.spi_miso                             (SD_DO),
 `endif
 		  
+`ifdef ROM_LOADER
+		.rom_wr(rom_wr),
+		.rom_addr(rom_addr),
+		.rom_data(rom_data),
+`endif
 `ifdef FLOPPY
 		.fdd_mgmt_address(fdd_mgmt_address),
 		.fdd_mgmt_fddn(fdd_mgmt_fddn),

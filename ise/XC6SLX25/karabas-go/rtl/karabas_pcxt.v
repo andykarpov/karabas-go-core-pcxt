@@ -91,6 +91,9 @@ wire [3:0] fdd_mgmt_address;
 wire fdd_mgmt_fddn, fdd_mgmt_write, fdd_mgmt_read;
 wire [15:0] fdd_mgmt_writedata, fdd_mgmt_readdata;
 wire [1:0] fdd_request;
+wire romload_active, romload_wr;
+wire [31:0] romload_addr;
+wire [7:0] romload_data;
 
 system sys_inst
 (
@@ -128,7 +131,15 @@ system sys_inst
 `endif
 	.btn_green_n_i(~kb_swap_video),
 	.btn_yellow_n_i(~kb_turbo_mode),
+`ifdef ROM_LOADER
+	// the PC waits in reset while the mcu loads the BIOS / XTIDE BIOS (roms of core*.json)
+	.reset_in(kb_reset | areset | romload_active)
+	,.rom_wr(romload_wr && romload_addr[31:15] == 17'd0)
+	,.rom_addr(romload_addr[14:0])
+	,.rom_data(romload_data)
+`else
 	.reset_in(kb_reset | areset)
+`endif
 `ifdef FLOPPY
 	,.fdd_mgmt_address(fdd_mgmt_address)
 	,.fdd_mgmt_fddn(fdd_mgmt_fddn)
@@ -265,10 +276,10 @@ kg_mcu #(
 	.SOFTSW_COMMAND(softsw_command),
 	.OSD_COMMAND(osd_command),
 
-	.ROMLOADER_ACTIVE(),
-	.ROMLOAD_ADDR(),
-	.ROMLOAD_DATA(),
-	.ROMLOAD_WR(),
+	.ROMLOADER_ACTIVE(romload_active),
+	.ROMLOAD_ADDR(romload_addr),
+	.ROMLOAD_DATA(romload_data),
+	.ROMLOAD_WR(romload_wr),
 	.IOCTL_ACTIVE(),
 
 	.FILELOAD_RESET(),

@@ -116,6 +116,12 @@ module PERIPHERALS (
 	output   wire  [15:0]      fdd_mgmt_readdata,
 	output   wire  [1:0]       fdd_request,
 `endif
+`ifdef ROM_LOADER
+	// karabas: the rom loader of the mcu (in the clock of the chipset)
+	input    wire              rom_wr,
+	input    wire  [14:0]      rom_addr,
+	input    wire  [7:0]       rom_data,
+`endif
 	output   reg  [7:0]        xtctl = 8'h00,
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
@@ -182,7 +188,12 @@ module PERIPHERALS (
 	wire ide0_chip_select_n      = ~(iorq && ~address_enable_n && ({address[15:4], 4'd0} == 16'h0300));
 	wire lpt_cs = (iorq && ~address_enable_n) && (address[15:0] == 16'h0378);
 	wire xtide_select_n = ~((~iorq && ~address_enable_n) && (address[19:14] == 6'b111011));
+`ifdef BIOS_16KB
+	// karabas: a 16 KB BIOS at FC000-FFFFF (Sergey Kiselev's XT BIOS of MiSTer PCXT)
+	wire bios_8kb_select_n = ~((~iorq && ~address_enable_n) && (address[19:14] == 6'b111111));
+`else
 	wire bios_8kb_select_n = ~((~iorq && ~address_enable_n) && (address[19:13] == 7'b1111111));
+`endif
 	wire tandy_chip_select_n = ~((iorq && ~address_enable_n) && (address[15:3] == (16'h00c0 >> 3)));
 `ifdef FLOPPY
 	wire floppy0_chip_select_n = ~(~address_enable_n && (({address[15:2], 2'd0} == 16'h03F0) || ({address[15:1], 1'd0} == 16'h03F4) || ({address[15:0]} == 16'h03F7)));
@@ -802,7 +813,44 @@ module PERIPHERALS (
 
 	assign SRAM_DATA = (~SRAM_WE_n ? SRAM_DATA_A_o : 8'hzz);
 	
+`ifdef ROM_LOADER
+	// karabas: the BIOS (16 KB, FC000-FFFFF) and the XTIDE BIOS (EC000-EFFFF) also written by the
+	// rom loader of the mcu (the roms of core*.json; the PC is in reset meanwhile): rom address
+	// 0000-3FFF the BIOS, 4000-7FFF the XTIDE BIOS. The .hex files stay as their first contents.
+	wire rom_bios_we = rom_wr && ~rom_addr[14];
+	wire rom_xtide_we = rom_wr && rom_addr[14];
+`ifdef BIOS_WRITABLE
+	wire bios_cpu_we = ~memory_write_n;
+`else
+	wire bios_cpu_we = 1'b0;
+`endif
+
+	bram #(.AW(14), .filename(`ROM_BIOS)) bios
+	(
+		.clka(clock),
+		.ena(~bios_8kb_select_n || rom_bios_we),
+		.douta(bios_cpu_dout),
+		.wea(rom_bios_we || bios_cpu_we),
+		.addra(rom_bios_we ? rom_addr[13:0] : address[13:0]),
+		.dina(rom_bios_we ? rom_data : internal_data_bus),
+		.istandy(tandy_video)
+	);
+
+	bram #(.AW(14), .filename(`XTIDE_BIOS)) xtide
+	(
+		.clka(clock),
+		.ena(~xtide_select_n || rom_xtide_we),
+		.wea(rom_xtide_we || bios_cpu_we),
+		.addra(rom_xtide_we ? rom_addr[13:0] : address[13:0]),
+		.dina(rom_xtide_we ? rom_data : internal_data_bus),
+		.douta(xtide_cpu_dout)
+	);
+`else
+`ifdef BIOS_16KB
+	bram #(.AW(14), .filename(`ROM_BIOS)) bios
+`else
 	bram #(.AW(13), .filename(`ROM_BIOS)) bios
+`endif
 	(
 		.clka(clock),
 		.ena(~bios_8kb_select_n),
@@ -812,7 +860,11 @@ module PERIPHERALS (
 		.wea(~memory_write_n),
 `endif
 
+`ifdef BIOS_16KB
+		.addra(address[13:0]),
+`else
 		.addra(address[12:0]),
+`endif
 		.dina(internal_data_bus),
 		.istandy(tandy_video)
 	);
@@ -830,6 +882,7 @@ module PERIPHERALS (
 		.dina(internal_data_bus),		
 		.douta(xtide_cpu_dout)
 	);
+`endif
 
 `ifdef MEM_512KB
 	`ifdef SPLASH_ENABLE
