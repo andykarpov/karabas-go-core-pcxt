@@ -102,6 +102,20 @@ module PERIPHERALS (
    input    wire              spi_miso,
 `endif
 
+`ifdef FLOPPY
+	// karabas: the floppy controller of MiSTer PCXT (floppy.v), its disks through the management
+	// bus of floppy.v (MiSTer: the HPS), DMA channel 2, IRQ 6
+	output   wire              fdd_dma_req,
+	input    wire              fdd_dma_ack,
+	input    wire              terminal_count,
+	input    wire  [3:0]       fdd_mgmt_address,
+	input    wire              fdd_mgmt_fddn,
+	input    wire              fdd_mgmt_write,
+	input    wire  [15:0]      fdd_mgmt_writedata,
+	input    wire              fdd_mgmt_read,
+	output   wire  [15:0]      fdd_mgmt_readdata,
+	output   wire  [1:0]       fdd_request,
+`endif
 	output   reg  [7:0]        xtctl = 8'h00,
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
@@ -170,12 +184,22 @@ module PERIPHERALS (
 	wire xtide_select_n = ~((~iorq && ~address_enable_n) && (address[19:14] == 6'b111011));
 	wire bios_8kb_select_n = ~((~iorq && ~address_enable_n) && (address[19:13] == 7'b1111111));
 	wire tandy_chip_select_n = ~((iorq && ~address_enable_n) && (address[15:3] == (16'h00c0 >> 3)));
+`ifdef FLOPPY
+	wire floppy0_chip_select_n = ~(~address_enable_n && (({address[15:2], 2'd0} == 16'h03F0) || ({address[15:1], 1'd0} == 16'h03F4) || ({address[15:0]} == 16'h03F7)));
+`endif
 	// wire xtctl_chip_select = (iorq && ~address_enable_n && address[15:0] == 16'h8888);
 
 `ifdef MEM_512KB
 	wire ram_select_n = ~(~iorq && ~address_enable_n && ~address[19]);
 `else
+`ifdef FLOPPY
+	// karabas: the memory cycles of the floppy DMA reach the RAM too (MiSTer: RAM.sv decodes
+	// the address alone; here the RAM needed the bus of the CPU)
+	wire fdd_dma_mem = fdd_dma_ack && (~memory_read_n || ~memory_write_n);
+	wire ram_select_n = ~((~iorq && ~address_enable_n) || fdd_dma_mem);
+`else
 	wire ram_select_n = ~(~iorq && ~address_enable_n);
+`endif
 	wire bios_select_n = ~(bios_8kb_select_n && (~iorq && ~address_enable_n) && (address[19:16] == 4'b1111));
 
 	wire nmi_mask_register_n = ~(((tandy_video && iorq) && ~address_enable_n) && (address[15:3] == (16'h00a0 >> 3)));
@@ -220,6 +244,9 @@ module PERIPHERALS (
 	wire timer_interrupt;
 	reg keybord_interrupt;
 	wire uart_interrupt;
+`ifdef FLOPPY
+	wire fdd_interrupt;
+`endif
 	wire [7:0] interrupt_data_bus_out;
 	wire interrupt_to_cpu_buf;
 	KF8259 u_KF8259(
@@ -235,10 +262,18 @@ module PERIPHERALS (
 		.slave_program_n(1'b1),
 		.interrupt_acknowledge_n(interrupt_acknowledge_n),
 		.interrupt_to_cpu(interrupt_to_cpu_buf),
+`ifdef FLOPPY
+`ifdef MOUSE_COM1
+		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
+`else
+		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
+`endif
+`else
 `ifdef MOUSE_COM1
 		.interrupt_request({interrupt_request[7:5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
 `else
 		.interrupt_request({interrupt_request[7:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
+`endif
 `endif		
 	);
 	
@@ -920,6 +955,100 @@ module PERIPHERALS (
 
     assign ide0_data_bus_in = mmcide_readdata;
 `endif	 
+
+`ifdef FLOPPY
+	//
+	// karabas: the floppy controller (floppy.v of MiSTer PCXT, its glue of Peripherals.sv),
+	// ports 3F0-3F7, DMA channel 2, IRQ 6, two drives
+	//
+	reg [7:0] write_to_fdd = 8'h00;
+	reg [2:0] fdd_io_address = 3'd0;
+	reg fdd_io_read = 1'b0, fdd_io_read_1 = 1'b0, fdd_io_write = 1'b0;
+	wire [7:0] fdd_readdata_wire;
+	wire [7:0] fdd_dma_readdata;
+	reg [7:0] fdd_readdata = 8'h00;
+	wire fdd_dma_req_wire;
+	reg fdd_dma_req_r = 1'b0;
+	reg prev_fdd_dma_ack = 1'b0;
+	reg fdd_dma_tc = 1'b0;
+	// the reset of system comes from a register on the falling edge of the clock: half a clock
+	// was too short for its path through floppy.v (selected_drive, the drive arrays)
+	reg fdd_rst_n = 1'b0;
+	always @(posedge clock)
+		fdd_rst_n <= ~reset;
+
+	always @(posedge clock)
+		if (~io_write_n)
+			write_to_fdd <= internal_data_bus;
+
+	// a read at the start of its strobe, a write at its end
+	always @(posedge clock) begin
+		fdd_io_address <= address[2:0];
+		fdd_io_read <= ~io_read_n & prev_io_read_n & ~floppy0_chip_select_n;
+		fdd_io_read_1 <= fdd_io_read;
+		fdd_io_write <= io_write_n & ~prev_io_write_n & ~floppy0_chip_select_n;
+	end
+
+	// a DMA byte at the end of its DACK
+	wire fdd_dma_read = fdd_dma_ack & ~io_read_n;
+	always @(posedge clock)
+		prev_fdd_dma_ack <= fdd_dma_ack;
+	wire fdd_dma_rw_ack = prev_fdd_dma_ack & ~fdd_dma_ack;
+
+	always @(posedge clock)
+		if (fdd_dma_ack) begin
+			if (~fdd_dma_tc)
+				fdd_dma_tc <= terminal_count;
+		end
+		else
+			fdd_dma_tc <= 1'b0;
+
+	floppy u_floppy(
+		.clk(clock),
+		.rst_n(fdd_rst_n),
+
+		.dma_req(fdd_dma_req_wire),
+		.dma_ack(fdd_dma_rw_ack),
+		.dma_tc(fdd_dma_tc & fdd_dma_rw_ack),
+		.dma_readdata(write_to_fdd),
+		.dma_writedata(fdd_dma_readdata),
+
+		.irq(fdd_interrupt),
+
+		.io_address(fdd_io_address),
+		.io_read(fdd_io_read),
+		.io_readdata(fdd_readdata_wire),
+		.io_write(fdd_io_write),
+		.io_writedata(write_to_fdd),
+
+		.fdd0_inserted(),
+
+		.mgmt_address(fdd_mgmt_address),
+		.mgmt_fddn(fdd_mgmt_fddn),
+		.mgmt_write(fdd_mgmt_write),
+		.mgmt_writedata(fdd_mgmt_writedata),
+		.mgmt_read(fdd_mgmt_read),
+		.mgmt_readdata(fdd_mgmt_readdata),
+
+		.wp(2'b00),
+		.clock_rate(`FDD_CLOCK_RATE),
+		.request(fdd_request)
+	);
+
+	// DRQ in step with the CPU clock, as MiSTer (cpu_ce_negedge there)
+	always @(posedge clock)
+		if (fdd_dma_ack)
+			fdd_dma_req_r <= 1'b0;
+		else if (cpu_clock_negedge)
+			fdd_dma_req_r <= fdd_dma_req_wire;
+	assign fdd_dma_req = fdd_dma_req_r;
+
+	always @(posedge clock)
+		if (fdd_io_read_1 && ~address_enable_n)
+			fdd_readdata <= fdd_readdata_wire;
+		else if (fdd_dma_read)
+			fdd_readdata <= fdd_dma_readdata;
+`endif
 	 
 	/*
 	wire [7:0] joy_data;
@@ -1012,6 +1141,12 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= xt2ide0_data_bus_out;
 		end
+`ifdef FLOPPY
+		else if ((~floppy0_chip_select_n || fdd_dma_read) && (~io_read_n)) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= fdd_readdata;
+		end
+`endif
 `ifdef MOUSE_COM1
       else if ((uart_cs) && (~io_read_n))
       begin

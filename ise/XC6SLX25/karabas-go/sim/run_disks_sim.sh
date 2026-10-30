@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 mkdir -p build
 M=../../../../modules/rtl
 iverilog -g2005 -o build/tb_disks.vvp -s tb_disks \
-	tb_disks.v ../../../../HW/KFPC-XT/HDL/XT2IDE.v ../rtl/pcxt_disks.v \
+	tb_disks.v ../../../../HW/KFPC-XT/HDL/XT2IDE.v ../rtl/pcxt_disks.v ../rtl/pcxt_fdd.v \
 	$M/mcu/img_sdc.v $M/mcu/hdf_ata.v
 vvp -n build/tb_disks.vvp | tee build/tb_disks.log | grep -E "ERROR|errors|geometry|word"
 grep -q "tb_disks: 0 errors" build/tb_disks.log

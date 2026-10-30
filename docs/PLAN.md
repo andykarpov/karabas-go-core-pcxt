@@ -89,6 +89,8 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 ## Ф5. Образы дискет
 
+Сделано 2026-10-31 (сборка 26103101, в симуляции; на железе ещё не проверено): `HW/common/floppy.v` + `simple_fifo.v` (Verilog-2001, FIFO на 512 байт) в `Peripherals.v` под `FLOPPY`, обвязка из `Peripherals.sv` MiSTer: порты 3F0–3F5 / 3F7, IRQ 6, DMA канал 2. ОЗУ `Peripherals.v` раньше выбиралось только при `~address_enable_n`, то есть DMA до него не доходил: теперь его выбирают и циклы памяти DACK 2. DIP: всегда два дисковода. `rtl/pcxt_fdd.v` в `pcxt_disks` заменяет HPS: геометрия по размеру образа, чтение секторов в FIFO, запись и форматирование через буфер сектора, слоты 2 / 3 `img_sdc`. OSD: FDD A image (Menu+F3), FDD B image (Menu+F4), Reset стал пунктом 7. Баг MiSTer исправлен: при форматировании с DMA TC приходит с последним байтом последнего ID, и `floppy.v` завершал команду без последнего сектора дорожки (ST0 «аварийное завершение»). Симуляция: `sim/run_fdd_sim.sh` (геометрия, чтение двух секторов, запись и чтение обратно, дисковод B, форматирование дорожки, отключение образа). Write protect из OSD не сделан.
+
 - FDC: `floppy.v` из MiSTer (ao486, Aleksander Osman / Alexey Melnikov, BSD-лицензия; немного SV — перевести на Verilog-2001). Порты 0x3F0–0x3F7, DMA канал 2 (`dma_request[2]` уже выведен из `Chipset`), IRQ 6.
 - Его интерфейс `mgmt` (сектора от HPS MiSTer) заменить на запросы к `img_sdc`: слоты `FDD A` / `FDD B` (`.img .ima`, 360K / 720K / 1.2M / 1.44M по размеру файла), write protect.
 - DIP-переключатели числа дисководов — по наличию образов (как «floppy presence» в MiSTer).

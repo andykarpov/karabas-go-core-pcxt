@@ -67,6 +67,16 @@ module system(
 	// splash screen; the other boards have no such input
 	,input		wire					reset_in
 `endif
+`ifdef FLOPPY
+	// karabas: the management bus of the floppy controller (floppy.v): the disks of drives A, B
+	,input    wire  [3:0]       fdd_mgmt_address
+	,input    wire              fdd_mgmt_fddn
+	,input    wire              fdd_mgmt_write
+	,input    wire  [15:0]      fdd_mgmt_writedata
+	,input    wire              fdd_mgmt_read
+	,output   wire  [15:0]      fdd_mgmt_readdata
+	,output   wire  [1:0]       fdd_request
+`endif
 	
 	/*
 	output	wire					LED,
@@ -304,7 +314,11 @@ reg splash_status = 1'b0;
 //	 wire [1:0] scale = status[2:1];
 //	 wire [2:0] screen_mode = status[16:14];	 
 	 
+`ifdef FLOPPY
+	 assign  sw = 8'b01101101; // PCXT DIP Switches (CGA 80, two floppy drives)
+`else
 	 assign  sw = 8'b00101101; // PCXT DIP Switches (CGA 80)
+`endif
 	 assign  port_c_in[3:0] = port_b_out[3] ? sw[7:4] : sw[3:0];
 	
    wire [15:0]jtopl2_snd_e;
@@ -435,6 +449,15 @@ reg splash_status = 1'b0;
 		.spi_miso                             (SD_DO),
 `endif
 		  
+`ifdef FLOPPY
+		.fdd_mgmt_address(fdd_mgmt_address),
+		.fdd_mgmt_fddn(fdd_mgmt_fddn),
+		.fdd_mgmt_write(fdd_mgmt_write),
+		.fdd_mgmt_writedata(fdd_mgmt_writedata),
+		.fdd_mgmt_read(fdd_mgmt_read),
+		.fdd_mgmt_readdata(fdd_mgmt_readdata),
+		.fdd_request(fdd_request),
+`endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),
 		  .SRAM_DATA                          (SRAM_DATA),

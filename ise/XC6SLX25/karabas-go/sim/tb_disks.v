@@ -93,6 +93,8 @@ pcxt_disks dut(
 	.clk(clk), .areset(reset), .hdd0_image(hdd0_image),
 	.sys_cs_n({ cs3fx, cs1fx }), .sys_rd_n(ide_rd_n), .sys_wr_n(ide_wr_n), .sys_a(ide_a),
 	.sys_dout(ide_to_disk), .sys_din(ide_from_disk), .sys_reset_n(~pc_reset),
+	.fdd_mgmt_address(), .fdd_mgmt_fddn(), .fdd_mgmt_write(), .fdd_mgmt_writedata(),
+	.fdd_mgmt_read(), .fdd_mgmt_readdata(16'h0000), .fdd_request(2'b00),
 	.cf_cs_n(), .cf_rd_n(), .cf_wr_n(), .cf_a(), .cf_d(cf_d), .cf_reset_n(),
 	.img_mounted(img_mounted), .img_size(img_size),
 	.img_data_wr(img_data_wr), .img_data_addr(img_data_addr), .img_data(img_data),

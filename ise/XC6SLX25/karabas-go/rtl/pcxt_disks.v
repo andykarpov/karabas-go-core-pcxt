@@ -6,7 +6,8 @@
 
  The disks behind the XT-IDE of system (XT2IDE, the 16-bit side, PHYSICAL_IDE): the CF card on the
  W* pins and hdf_ata (karabas-go-modules), the image disks of the mcu file mounter through
- img_sdc, slots 0 (HDD0) and 1 (HDD1).
+ img_sdc, slots 0 (HDD0) and 1 (HDD1); and the floppy drives A and B of system (floppy.v), slots
+ 2 and 3, through pcxt_fdd.
  - hdd0_image = 0: the card is device 0, the HDD1 image device 1 (the card ignores the commands
    for device 1); the read data comes from the card while DEV of the task file is 0.
  - hdd0_image = 1: the card gets no chip select, the images are devices 0 and 1.
@@ -29,6 +30,15 @@ module pcxt_disks (
 	input wire [15:0] sys_dout,
 	output wire [15:0] sys_din,
 	input wire sys_reset_n,
+
+	// the management bus of the floppy controller of system
+	output wire [3:0] fdd_mgmt_address,
+	output wire fdd_mgmt_fddn,
+	output wire fdd_mgmt_write,
+	output wire [15:0] fdd_mgmt_writedata,
+	output wire fdd_mgmt_read,
+	input wire [15:0] fdd_mgmt_readdata,
+	input wire [1:0] fdd_request,
 
 	// the CF card
 	output wire [1:0] cf_cs_n,
@@ -87,6 +97,11 @@ wire sdc_byte_in_strobe;
 wire [8:0] sdc_byte_addr;
 wire [7:0] sdc_byte_in_data;
 wire [7:0] hdf_byte_out_data;
+wire [1:0] fdd_rd, fdd_wr;
+wire [31:0] fdd_sector;
+wire [7:0] fdd_byte_out_data;
+wire hdf_own = (sdc_slot < 3'd2);
+wire fdd_own = (sdc_slot[2:1] == 2'b01);
 
 img_sdc #(
 	.OUT_LATENCY(3),
@@ -110,9 +125,9 @@ img_sdc #(
 
 	.sdc_img_mounted(sdc_img_mounted),
 	.sdc_img_size(sdc_img_size),
-	.sdc_rd({6'b000000, hdf_rd}),
-	.sdc_wr({6'b000000, hdf_wr}),
-	.sdc_sector(hdf_sector),
+	.sdc_rd({4'b0000, fdd_rd, hdf_rd}),
+	.sdc_wr({4'b0000, fdd_wr, hdf_wr}),
+	.sdc_sector((hdf_rd != 2'b00 || hdf_wr != 2'b00) ? hdf_sector : fdd_sector), // the lower slots go first
 	.sdc_busy(sdc_busy),
 	.sdc_done(sdc_done),
 	.sdc_error(sdc_error),
@@ -120,13 +135,12 @@ img_sdc #(
 	.sdc_byte_in_strobe(sdc_byte_in_strobe),
 	.sdc_byte_addr(sdc_byte_addr),
 	.sdc_byte_in_data(sdc_byte_in_data),
-	.sdc_byte_out_data(hdf_byte_out_data),
+	.sdc_byte_out_data(fdd_own ? fdd_byte_out_data : hdf_byte_out_data),
 	.active()
 );
 
 wire [15:0] hdf_dout;
 wire hdf_dev;
-wire hdf_own = (sdc_slot < 3'd2);
 
 hdf_ata #(
 	.DEF_HEADS(5'd16),
@@ -160,6 +174,31 @@ hdf_ata #(
 	.sdc_byte_in_data(sdc_byte_in_data),
 	.sdc_byte_out_data(hdf_byte_out_data),
 	.led()
+);
+
+pcxt_fdd u_fdd(
+	.clk(clk),
+	.reset(areset),
+
+	.mgmt_address(fdd_mgmt_address),
+	.mgmt_fddn(fdd_mgmt_fddn),
+	.mgmt_write(fdd_mgmt_write),
+	.mgmt_writedata(fdd_mgmt_writedata),
+	.mgmt_read(fdd_mgmt_read),
+	.mgmt_readdata(fdd_mgmt_readdata),
+	.request(fdd_request),
+
+	.img_mounted(sdc_img_mounted[3:2]),
+	.img_size(sdc_img_size),
+	.sdc_rd(fdd_rd),
+	.sdc_wr(fdd_wr),
+	.sdc_sector(fdd_sector),
+	.sdc_busy(sdc_busy & fdd_own),
+	.sdc_done(sdc_done & fdd_own),
+	.sdc_byte_in_strobe(sdc_byte_in_strobe & fdd_own),
+	.sdc_byte_addr(sdc_byte_addr),
+	.sdc_byte_in_data(sdc_byte_in_data),
+	.sdc_byte_out_data(fdd_byte_out_data)
 );
 
 // read data: the images, or the card while it is device 0

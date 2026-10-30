@@ -122,6 +122,15 @@ module CHIPSET (
    input    wire              spi_miso,
 `endif
 
+`ifdef FLOPPY
+   input    wire  [3:0]       fdd_mgmt_address,
+   input    wire              fdd_mgmt_fddn,
+   input    wire              fdd_mgmt_write,
+   input    wire  [15:0]      fdd_mgmt_writedata,
+   input    wire              fdd_mgmt_read,
+   output   wire  [15:0]      fdd_mgmt_readdata,
+   output   wire  [1:0]       fdd_request,
+`endif
    output   wire  [7:0]       xtctl,
 	output	wire	[20:0]		SRAM_ADDR,
 	inout 	wire	[7:0] 		SRAM_DATA,
@@ -154,6 +163,9 @@ module CHIPSET (
 	wire ems_b4;
 	wire tandy_snd_rdy;
 	wire cga_vram_rdy;
+`ifdef FLOPPY
+	wire fdd_dma_req;
+`endif
 
 	always @(posedge clock)
 		if (reset)
@@ -216,7 +228,11 @@ module CHIPSET (
 		.memory_write_n(memory_write_n),
 		.memory_write_n_ext(memory_write_n_ext),
 		.memory_write_n_direction(memory_write_n_direction),
+`ifdef FLOPPY
+		.dma_request({dma_request[3], dma_request[2] | fdd_dma_req, dma_request[1], DRQ0}),
+`else
 		.dma_request({dma_request[3:1], DRQ0}),
+`endif
 		.dma_acknowledge_n(dma_acknowledge_n),
 		.address_enable_n(address_enable_n),
 		.terminal_count_n(terminal_count_n)
@@ -321,6 +337,18 @@ module CHIPSET (
       .spi_miso(spi_miso),
 `endif
 
+`ifdef FLOPPY
+		.fdd_dma_req(fdd_dma_req),
+		.fdd_dma_ack(~dma_acknowledge_n[2]),
+		.terminal_count(terminal_count_n), // active high (end_of_process_n of the 8237 inverted)
+		.fdd_mgmt_address(fdd_mgmt_address),
+		.fdd_mgmt_fddn(fdd_mgmt_fddn),
+		.fdd_mgmt_write(fdd_mgmt_write),
+		.fdd_mgmt_writedata(fdd_mgmt_writedata),
+		.fdd_mgmt_read(fdd_mgmt_read),
+		.fdd_mgmt_readdata(fdd_mgmt_readdata),
+		.fdd_request(fdd_request),
+`endif
 		.xtctl(xtctl),
 		.btn_green_n_i(btn_green_n_i),
 		.btn_yellow_n_i(btn_yellow_n_i)

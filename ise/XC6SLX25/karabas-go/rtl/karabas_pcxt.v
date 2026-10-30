@@ -12,13 +12,18 @@
  Soft switch n = OSD item n of core*.json:
    0 Video mode (RGB / VGA)   1 Turbo   2 HDD0 (CF card / Image)
    3 HDD0 image (file slot 0, no value)   4 HDD1 image (file slot 1, no value)
-   5 Reset (a pulse of the firmware: resets the whole PC, as after the splash screen)
+   5 FDD A image (file slot 2, no value)  6 FDD B image (file slot 3, no value)
+   7 Reset (a pulse of the firmware: resets the whole PC, as after the splash screen)
 
  Disks (PHYSICAL_IDE): the XT-IDE of system (XT2IDE, ports 300h) talks to the CF card on the W*
  pins and to hdf_ata, the image disks of the file mounter (img_sdc, slots 0 and 1). HDD0 = CF
  card: the card is device 0, the HDD1 image device 1 (the card ignores the commands for device 1);
  the read data comes from the card while DEV = 0. HDD0 = Image: the card is off (no chip select),
  the images are devices 0 and 1.
+
+ Floppies (FLOPPY): the floppy controller of system (floppy.v of MiSTer, ports 3F0h, DMA 2,
+ IRQ 6, two drives) gets drives A and B from slots 2 and 3 of the file mounter (pcxt_fdd in
+ pcxt_disks, on the management bus of floppy.v).
 */
 
 module karabas_pcxt #(
@@ -82,6 +87,10 @@ wire [1:0] sys_ide_cs_n;
 wire sys_ide_rd_n, sys_ide_wr_n, sys_ide_reset_n;
 wire [2:0] sys_ide_a;
 wire [15:0] sys_ide_dout, sys_ide_din;
+wire [3:0] fdd_mgmt_address;
+wire fdd_mgmt_fddn, fdd_mgmt_write, fdd_mgmt_read;
+wire [15:0] fdd_mgmt_writedata, fdd_mgmt_readdata;
+wire [1:0] fdd_request;
 
 system sys_inst
 (
@@ -120,7 +129,20 @@ system sys_inst
 	.btn_green_n_i(~kb_swap_video),
 	.btn_yellow_n_i(~kb_turbo_mode),
 	.reset_in(kb_reset | areset)
+`ifdef FLOPPY
+	,.fdd_mgmt_address(fdd_mgmt_address)
+	,.fdd_mgmt_fddn(fdd_mgmt_fddn)
+	,.fdd_mgmt_write(fdd_mgmt_write)
+	,.fdd_mgmt_writedata(fdd_mgmt_writedata)
+	,.fdd_mgmt_read(fdd_mgmt_read)
+	,.fdd_mgmt_readdata(fdd_mgmt_readdata)
+	,.fdd_request(fdd_request)
+`endif
 );
+`ifndef FLOPPY
+assign fdd_mgmt_readdata = 16'h0000;
+assign fdd_request = 2'b00;
+`endif
 
 `ifdef PHYSICAL_IDE
 	assign sd_cs_n = 1'b1;
@@ -327,11 +349,11 @@ hid_parser hid_parser(
 
 //---------- Soft switches ------------
 
-// register n = OSD item n of core*.json; the file items (3, 4) have no value
-wire [47:0] softsw_regs;
+// register n = OSD item n of core*.json; the file items (3-6) have no value
+wire [63:0] softsw_regs;
 kg_soft_switches #(
-	.N(6),
-	.INIT(48'h00_00_00_01_00_01)
+	.N(8),
+	.INIT(64'h00_00_00_00_00_01_00_01)
 ) u_softsw(
 	.clk(clk_50),
 	.command(softsw_command),
@@ -343,7 +365,7 @@ wire kb_hdd0_image;
 assign kb_swap_video = softsw_regs[0*8];
 assign kb_turbo_mode = softsw_regs[1*8];
 assign kb_hdd0_image = softsw_regs[2*8];
-assign kb_reset      = softsw_regs[5*8];
+assign kb_reset      = softsw_regs[7*8];
 
 `ifdef PHYSICAL_IDE
 //---------- Disks: CF card and images ------------
@@ -360,6 +382,14 @@ pcxt_disks disks(
 	.sys_dout(sys_ide_dout),
 	.sys_din(sys_ide_din),
 	.sys_reset_n(sys_ide_reset_n),
+
+	.fdd_mgmt_address(fdd_mgmt_address),
+	.fdd_mgmt_fddn(fdd_mgmt_fddn),
+	.fdd_mgmt_write(fdd_mgmt_write),
+	.fdd_mgmt_writedata(fdd_mgmt_writedata),
+	.fdd_mgmt_read(fdd_mgmt_read),
+	.fdd_mgmt_readdata(fdd_mgmt_readdata),
+	.fdd_request(fdd_request),
 
 	.cf_cs_n(ide_cs_n),
 	.cf_rd_n(ide_rd_n),
