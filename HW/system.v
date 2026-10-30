@@ -55,6 +55,11 @@ module system(
 
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
+`ifdef KARABASGO
+	// karabas: a reset of the whole PC (the OSD Reset item, PLL not locked), as at the end of the
+	// splash screen; the other boards have no such input
+	,input		wire					reset_in
+`endif
 	
 	/*
 	output	wire					LED,
@@ -176,7 +181,11 @@ always @(posedge clk_chipset) begin
     cen_opl2 <= clk_opl2_ff_2 & ~clk_opl2_ff_3;
 end
 
+`ifdef KARABASGO
+wire reset_wire = splashscreen | reset_in;
+`else
 wire reset_wire = splashscreen;
+`endif
 
 //////////////////////////////////////////////////////////////////
 

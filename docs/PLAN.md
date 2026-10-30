@@ -53,6 +53,8 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 ## Ф2. Баги
 
+Сделано 2026-10-30 (сборка 26103022): OSD Reset сбрасывает весь PC (вход `reset_in` в `system` под `KARABASGO`). Неявных проводов в коде Karabas больше нет (`ms_z` ушёл с `kg_mcu`). Предупреждения XST в общем коде проверены: ширина `tandy_snd_e` (sn76489 без знака, 0..124, дополнение нулями верно), `hdmi_frame` — не баги. Частота 28.636 МГц перенесена в Ф3: нужен отдельный PLL для `clk_vga`, тогда клоки CPU и чипсета станут асинхронными, а MiSTer решал это вместе с переходом на clock enable («XT timing: drive the chipset with exact clock enables»).
+
 - OSD Reset: вход сброса в `system` (холодный сброс без splash screen), от `kb_reset` и от `mcu_busy` / загрузки.
 - `ms_z`, прочие неявные провода (проверить предупреждения XST).
 - Клок 28.636 МГц (или clock enable с точной частотой, как в MiSTer «exact clock enables»), если это влезает в DCM / PLL.

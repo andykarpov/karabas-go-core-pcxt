@@ -10,7 +10,8 @@
  (VGA or HDMI) and the audio DAC.
 
  Soft switch n = OSD item n of core*.json:
-   0 Video mode (RGB / VGA)   1 Turbo   2 Reset
+   0 Video mode (RGB / VGA)   1 Turbo   2 Reset (a pulse of the firmware: resets the whole PC,
+                                          as after the splash screen)
 */
 
 module karabas_pcxt #(
@@ -110,7 +111,8 @@ system sys_inst
 	.SD_DO(sd_do),
 `endif
 	.btn_green_n_i(~kb_swap_video),
-	.btn_yellow_n_i(~kb_turbo_mode)
+	.btn_yellow_n_i(~kb_turbo_mode),
+	.reset_in(kb_reset | areset)
 );
 
 `ifdef PHYSICAL_IDE

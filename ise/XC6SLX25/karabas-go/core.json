@@ -1,7 +1,7 @@
 {
     "id": "pcxt",
     "name": "PC XT",
-    "build": "26103021",
+    "build": "26103022",
     "bitstream": "karabas_go_top.bin",
     "visible": true,
     "type": "osd",
