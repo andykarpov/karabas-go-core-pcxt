@@ -52,7 +52,7 @@ module karabas_pcxt #(
 	output wire vga_vs,
 	output wire dvi_only,       // in clk_vga
 
-	// audio (two's complement)
+	// audio (two's complement, clk_50)
 	output wire [15:0] audio_l,
 	output wire [15:0] audio_r,
 
@@ -69,6 +69,7 @@ wire serial_mouse_tx, serial_mouse_rts;
 wire kb_swap_video, kb_turbo_mode;
 wire [7:0] xt_scancode;
 wire xt_scancode_upd;
+wire [15:0] aud_l, aud_r;
 
 system sys_inst
 (
@@ -92,8 +93,8 @@ system sys_inst
 	.serial_mouse_tx(serial_mouse_tx),
 	.serial_mouse_rts(serial_mouse_rts),
 
-	.AUD_L(audio_l),
-	.AUD_R(audio_r),
+	.AUD_L(aud_l),
+	.AUD_R(aud_r),
 
 `ifdef PHYSICAL_IDE
 	.ide_cs_n(ide_cs_n),
@@ -124,6 +125,16 @@ system sys_inst
 	assign ide_d = 16'hZZZZ;
 	assign ide_reset_n = 1'b1;
 `endif
+
+// the mix of system is combinational: a register in clk_50 before it leaves for the DAC / HDMI
+// (zhdmi_top takes it into the pixel clock when two samples there are the same)
+reg [15:0] audio_l_r = 16'h0, audio_r_r = 16'h0;
+always @(posedge clk_50) begin
+	audio_l_r <= aud_l;
+	audio_r_r <= aud_r;
+end
+assign audio_l = audio_l_r;
+assign audio_r = audio_r_r;
 
 //---------- MCU ------------
 

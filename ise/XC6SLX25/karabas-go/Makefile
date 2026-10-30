@@ -50,7 +50,7 @@ karabas_$(1)_top.ngc: karabas_$(1)_top.prj karabas_$(1)_top.xst $$(SRC_$(1)) $(I
 	$(XIL) xst -intstyle ise -ifn karabas_$(1)_top.xst -ofn karabas_$(1)_top.syr
 
 karabas_$(1)_top.bin: karabas_$(1)_top.ngc karabas_$(1).ucf karabas_$(1)_top.ut
-	$(XIL) ngdbuild -intstyle ise -dd _ngo -sd ipcore_dir -nt timestamp -uc karabas_$(1).ucf -p $(PART) karabas_$(1)_top.ngc karabas_$(1)_top.ngd
+	$(XIL) ngdbuild -intstyle ise -dd _ngo -nt timestamp -uc karabas_$(1).ucf -p $(PART) karabas_$(1)_top.ngc karabas_$(1)_top.ngd
 	$(XIL) map -intstyle ise -p $(PART) -w $(MAP_OPTS) -t $(MAP_T_$(1)) -o karabas_$(1)_top_map.ncd karabas_$(1)_top.ngd karabas_$(1)_top.pcf
 	$(XIL) par -w -intstyle ise $(PAR_OPTS) karabas_$(1)_top_map.ncd karabas_$(1)_top.ncd karabas_$(1)_top.pcf
 	$(XIL) trce -intstyle ise -v 3 -s 2 -n 3 -fastpaths -xml karabas_$(1)_top.twx karabas_$(1)_top.ncd -o karabas_$(1)_top.twr karabas_$(1)_top.pcf -ucf karabas_$(1).ucf

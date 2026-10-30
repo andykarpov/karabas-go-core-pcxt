@@ -245,7 +245,7 @@ hdmi_frame hdmi_frame(
 
 zhdmi_top zhdmi_top(
 	.clk(clk_28_571),
-	.reset(areset || kb_reset),
+	.reset(areset),
 
 	.vga_rgb(hdmi_rgb),
 	.vga_hs(hdmi_hs),

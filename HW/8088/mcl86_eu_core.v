@@ -202,40 +202,51 @@ assign eu_opcode_jump_cond  = eu_rom_data[19:16];
 
 
 
-assign  eu_operand0 = (eu_opcode_op0_sel==4'h0) ? eu_register_ax  :
-                      (eu_opcode_op0_sel==4'h1) ? eu_register_bx  :
-                      (eu_opcode_op0_sel==4'h2) ? eu_register_cx  :
-                      (eu_opcode_op0_sel==4'h3) ? eu_register_dx  :
-                      (eu_opcode_op0_sel==4'h4) ? eu_register_sp  :
-                      (eu_opcode_op0_sel==4'h5) ? eu_register_bp  :
-                      (eu_opcode_op0_sel==4'h6) ? eu_register_si  :
-                      (eu_opcode_op0_sel==4'h7) ? eu_register_di  :
-                      (eu_opcode_op0_sel==4'h8) ? eu_flags        :
-                      (eu_opcode_op0_sel==4'h9) ? eu_register_r0  :
-                      (eu_opcode_op0_sel==4'hA) ? eu_register_r1  :
-                      (eu_opcode_op0_sel==4'hB) ? eu_register_r2  :
-                      (eu_opcode_op0_sel==4'hC) ? eu_register_r3  :
-                      (eu_opcode_op0_sel==4'hD) ? eu_biu_command  :
-                      (eu_opcode_op0_sel==4'hE) ? system_signals  :
-                                                  16'h0           ;
+// karabas: the operand multiplexers as case statements (parallel 16:1 muxes instead of a chain
+// of 15 compares): the path microcode ROM -> operands -> adder -> registers did not meet 100 MHz
+reg [15:0] eu_operand0_r, eu_operand1_r;
+assign eu_operand0 = eu_operand0_r;
+assign eu_operand1 = eu_operand1_r;
 
-                                                 
-assign  eu_operand1 = (eu_opcode_op1_sel==4'h0) ? BIU_REGISTER_ES     :
-                      (eu_opcode_op1_sel==4'h1) ? BIU_REGISTER_SS     :
-                      (eu_opcode_op1_sel==4'h2) ? BIU_REGISTER_CS     :
-                      (eu_opcode_op1_sel==4'h3) ? BIU_REGISTER_DS     :
-                      (eu_opcode_op1_sel==4'h4) ? { 8'h00 , PFQ_TOP_BYTE }  :
-                      (eu_opcode_op1_sel==4'h5) ? BIU_REGISTER_RM     :
-                      (eu_opcode_op1_sel==4'h6) ? BIU_REGISTER_REG    :
-                      (eu_opcode_op1_sel==4'h7) ? BIU_RETURN_DATA     :
-                      (eu_opcode_op1_sel==4'h8) ? PFQ_ADDR_OUT        :
-                      (eu_opcode_op1_sel==4'h9) ? eu_register_r0      :
-                      (eu_opcode_op1_sel==4'hA) ? eu_register_r1      :
-                      (eu_opcode_op1_sel==4'hB) ? eu_register_r2      :
-                      (eu_opcode_op1_sel==4'hC) ? eu_register_r3      :
-                      (eu_opcode_op1_sel==4'hD) ? eu_alu_last_result  :  
-                      (eu_opcode_op1_sel==4'hE) ? system_signals      :
-                                                  eu_opcode_immediate ;
+always @(*)
+  case (eu_opcode_op0_sel)
+    4'h0 : eu_operand0_r = eu_register_ax;
+    4'h1 : eu_operand0_r = eu_register_bx;
+    4'h2 : eu_operand0_r = eu_register_cx;
+    4'h3 : eu_operand0_r = eu_register_dx;
+    4'h4 : eu_operand0_r = eu_register_sp;
+    4'h5 : eu_operand0_r = eu_register_bp;
+    4'h6 : eu_operand0_r = eu_register_si;
+    4'h7 : eu_operand0_r = eu_register_di;
+    4'h8 : eu_operand0_r = eu_flags;
+    4'h9 : eu_operand0_r = eu_register_r0;
+    4'hA : eu_operand0_r = eu_register_r1;
+    4'hB : eu_operand0_r = eu_register_r2;
+    4'hC : eu_operand0_r = eu_register_r3;
+    4'hD : eu_operand0_r = eu_biu_command;
+    4'hE : eu_operand0_r = system_signals;
+    default : eu_operand0_r = 16'h0;
+  endcase
+
+always @(*)
+  case (eu_opcode_op1_sel)
+    4'h0 : eu_operand1_r = BIU_REGISTER_ES;
+    4'h1 : eu_operand1_r = BIU_REGISTER_SS;
+    4'h2 : eu_operand1_r = BIU_REGISTER_CS;
+    4'h3 : eu_operand1_r = BIU_REGISTER_DS;
+    4'h4 : eu_operand1_r = { 8'h00 , PFQ_TOP_BYTE };
+    4'h5 : eu_operand1_r = BIU_REGISTER_RM;
+    4'h6 : eu_operand1_r = BIU_REGISTER_REG;
+    4'h7 : eu_operand1_r = BIU_RETURN_DATA;
+    4'h8 : eu_operand1_r = PFQ_ADDR_OUT;
+    4'h9 : eu_operand1_r = eu_register_r0;
+    4'hA : eu_operand1_r = eu_register_r1;
+    4'hB : eu_operand1_r = eu_register_r2;
+    4'hC : eu_operand1_r = eu_register_r3;
+    4'hD : eu_operand1_r = eu_alu_last_result;
+    4'hE : eu_operand1_r = system_signals;
+    default : eu_operand1_r = eu_opcode_immediate;
+  endcase
 
 
 
@@ -297,28 +308,30 @@ assign eu_alu7 = { 1'b0 , eu_operand0[15:1] };                  // SHR
 
 
 // Mux the ALU operations
-assign eu_alu_out = (eu_opcode_type==3'h2) ? eu_alu2 :   
-                    (eu_opcode_type==3'h3) ? eu_alu3 :
-                    (eu_opcode_type==3'h4) ? eu_alu4 :
-                    (eu_opcode_type==3'h5) ? eu_alu5 :
-                    (eu_opcode_type==3'h6) ? eu_alu6 :
-                    (eu_opcode_type==3'h7) ? eu_alu7 :
-                                             20'hEEEEE;
+// karabas: a case statement; NOP (0) and JUMP (1) never write back (see Register writeback),
+// so they take the adder too instead of the former constant
+reg [15:0] eu_alu_out_r;
+assign eu_alu_out = eu_alu_out_r;
+always @(*)
+  case (eu_opcode_type)
+    3'h3 : eu_alu_out_r = eu_alu3;
+    3'h4 : eu_alu_out_r = eu_alu4;
+    3'h5 : eu_alu_out_r = eu_alu5;
+    3'h6 : eu_alu_out_r = eu_alu6;
+    3'h7 : eu_alu_out_r = eu_alu7;
+    default : eu_alu_out_r = eu_alu2;
+  endcase
 
-    
-  
 
 
-// Generate 16-bit full adder for the EU
-assign carry[0] = 1'b0;
-genvar i;
-generate
-  for (i=0; i < 16; i=i+1) 
-    begin : GEN_ADDER
-      assign adder_out[i] =  eu_operand0[i] ^ eu_operand1[i] ^ carry[i];     
-      assign carry[i+1]   = (eu_operand0[i] & eu_operand1[i]) | (eu_operand0[i] & carry[i]) | (eu_operand1[i] & carry[i]);  
-    end
-endgenerate
+// 16-bit adder for the EU
+// karabas: one addition (the carry chain of the slices) instead of a ripple adder built from
+// gates; the carry into each bit, which the flags use, is sum ^ a ^ b
+wire [16:0] adder_sum = { 1'b0 , eu_operand0 } + { 1'b0 , eu_operand1 };
+assign adder_out = adder_sum[15:0];
+assign carry[0]  = 1'b0;
+assign carry[15:1] = adder_sum[15:1] ^ eu_operand0[15:1] ^ eu_operand1[15:1];
+assign carry[16] = adder_sum[16];
 
 assign eu_parity = ~(eu_alu_last_result[0]^eu_alu_last_result[1]^eu_alu_last_result[2]^eu_alu_last_result[3]^eu_alu_last_result[4]^eu_alu_last_result[5]^eu_alu_last_result[6]^eu_alu_last_result[7]);
 
