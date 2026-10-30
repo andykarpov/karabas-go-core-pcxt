@@ -391,9 +391,14 @@ always @(posedge clk_vga) begin
 		osd_cmd_vga <= osd_word;
 end
 
+// the position, VGA mode (cga_scandoubler): a line of 912 clocks, the picture at 0..639, VGA_HSYNC
+// low at 720..880; the overlay counts from the rising hsync (880), a step per 2 clocks: the 256
+// pixels (512 clocks) of the OSD centred at 32 + 64 clocks. A frame of 524 lines, the picture at
+// 0..399, vsync high at 448..479; the overlay counts from its rising edge, a step per 2 lines:
+// the 416 lines of the OSD centred at 76 - 8.
 kg_osd_overlay #(
-	.H_OFFSET(120),
-	.V_OFFSET(72)
+	.H_OFFSET(48),
+	.V_OFFSET(34)
 ) overlay(
 	.clk(clk_vga),
 	.rgb_i({r, 2'b00, g, 2'b00, b, 2'b00}),
