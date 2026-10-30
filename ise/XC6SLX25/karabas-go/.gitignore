@@ -1,0 +1,4 @@
+# build inputs (the patterns of the root .gitignore hide them)
+!karabas_*_top.prj
+!karabas_*_top.xst
+!karabas_*_top.ut

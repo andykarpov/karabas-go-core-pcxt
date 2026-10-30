@@ -38,6 +38,8 @@ Upstream MiSTer (`MiSTer-devel/PCXT_MiSTer`, efce777, 2026-10-12): после н
 - `.gitignore` для выходных файлов ISE.
 - Baseline: сборка текущего кода (сначала Mini G), таблица LUT / слайсов / тайминга для сравнения на следующих фазах.
 
+Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LUT 5715 (38 %), слайсы 2260 (60 %), RAMB16 25, RAMB8 4, DSP 2; 3 constraints не выполнены, Timing Score 117909: `hdmi_pll_clk0` −5.205 нс, `hdmi_pll_clkfx` −1.869 нс, `clk_100` (`dcm_system_clkout0`) −0.759 нс (107 путей). Go и Mini: данные коммитнутых сборок (см. раздел 0), пересобираются в Ф1.
+
 ## Ф1. Подключение karabas-go-modules
 
 - Сабмодуль `modules/` в корне репо (URL `../karabas-go-modules.git`); в `.prj` пути `../../../modules/rtl/...`.
