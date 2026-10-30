@@ -1,10 +1,10 @@
 {
     "id": "pcxt",
     "name": "PC XT",
-    "build": "24090915",
+    "build": "26103021",
     "bitstream": "karabas_go_top.bin",
     "visible": true,
-    "type": "none",
+    "type": "osd",
     "order": 6,
     "eeprom_bank": 255,
     "roms": [],

@@ -113,246 +113,142 @@
 	input wire MCU_CS_N,
 	input wire MCU_SCK,
 	inout wire MCU_MOSI,
-	output wire MCU_MISO	
+	output wire MCU_MISO,
+	inout wire [1:0] MCU_SPI_IO // [0] burst ready (N9), [1] burst cs_n (M11)
    );
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	assign ESP_RESET_N = 1'bZ;
-	assign ESP_BOOT_N = 1'bZ;
-	
-	assign VGA_R[7:0] = {r[5:0], 2'b00};
-	assign VGA_G[7:0] = {g[5:0], 2'b00};
-	assign VGA_B[7:0] = {b[5:0], 2'b00};
-	
-	assign FT_SPI_CS_N = 1'b1;
-	assign FT_SPI_SCK = 1'b0;
-	assign FT_OE_N = 1'b1;
-	assign FT_SPI_MOSI = 1'b0;
-	
-	assign MWR_N[1] = 1'b1;
-	assign MRD_N = 2'b10;
-	assign MD[15:8] = 8'bZZZZZZZZ;
-	
-	assign SDR_BA = 2'b00;
-	assign SDR_A = 13'b0000000000000;
-	assign SDR_CLK = 1'b0;
-	assign SDR_DQM = 2'b00;
-	assign SDR_WE_N = 1'b1;
-	assign SDR_CAS_N = 1'b1;
-	assign SDR_RAS_N = 1'b1;
-	
-`ifndef PHYSICAL_IDE
-	assign WA = 3'b000;
-	assign WCS_N = 2'b11;
-	assign WRD_N = 1'b1;
-	assign WWR_N = 1'b1;
-	assign WRESET_N = 1'b1;
-`else
-	assign SD_CS_N = 1'b1;
-	assign SD_CLK = 1'b0;
-`endif
-	
+assign ESP_RESET_N = 1'bZ;
+assign ESP_BOOT_N = 1'bZ;
 
-	assign FDC_DRIVE = 2'b00;
-	assign FDC_MOTOR = 1'b0;
-	assign FDC_DIR = 1'b0;
-	assign FDC_STEP = 1'b0;
-	assign FDC_WDATA = 1'b0;
-	assign FDC_WGATE = 1'b0;
-	assign FDC_SIDE_N = 1'b1;
+assign FT_SPI_CS_N = 1'b1;
+assign FT_SPI_SCK = 1'b0;
+assign FT_OE_N = 1'b1;
+assign FT_SPI_MOSI = 1'b0;
 
-	assign TAPE_OUT = 1'b0;
-	assign BEEPER = 1'b0;	
+assign MWR_N[1] = 1'b1;
+assign MRD_N = 2'b10;
+assign MD[15:8] = 8'bZZZZZZZZ;
 
-	wire clk_100;
-	wire clk_50;
-	wire clk_28_571;
-	wire locked;
-	wire areset;
-	
-	//---------- PLL ------------
-	
-	dcm dcm_system 
-	(
-		.CLK_IN1(CLK_50MHZ),
-		.CLK_OUT1(clk_100),
-		.CLK_OUT2(clk_50),
-		.CLK_OUT3(clk_28_571),
-		.LOCKED(locked)
-   );
-	
-	assign areset = ~locked;
-   
-	//---------- PCXT ------------
+assign SDR_BA = 2'b00;
+assign SDR_A = 13'b0000000000000;
+assign SDR_CLK = 1'b0;
+assign SDR_DQM = 2'b00;
+assign SDR_WE_N = 1'b1;
+assign SDR_CAS_N = 1'b1;
+assign SDR_RAS_N = 1'b1;
 
-	wire [5:0] r, g, b;
-	wire serial_mouse_tx, serial_mouse_rts;
-	wire [15:0] audio_l, audio_r;
-	wire ps2_clk, ps2_dat;
-	wire kb_swap_video, kb_turbo_mode;
-	wire [7:0] hid_kb_scancode;
-	wire hid_kb_scancode_upd;	
+assign FDC_DRIVE = 2'b00;
+assign FDC_MOTOR = 1'b0;
+assign FDC_DIR = 1'b0;
+assign FDC_STEP = 1'b0;
+assign FDC_WDATA = 1'b0;
+assign FDC_WGATE = 1'b0;
+assign FDC_SIDE_N = 1'b1;
 
-	system sys_inst
-	(
-		.clk_100(clk_100),
-		.clk_chipset(clk_50),
-		.clk_vga(clk_28_571),
-		
-		.VGA_R(r),
-		.VGA_G(g),
-		.VGA_B(b),
-		.VGA_HSYNC(VGA_HS),
-		.VGA_VSYNC(VGA_VS),
-		
-		.SRAM_ADDR(MA),
-		.SRAM_DATA(MD[7:0]),
-		.SRAM_WE_n(MWR_N[0]),
-		
-		.kb_scancode(hid_kb_scancode),
-		.kb_scancode_upd(hid_kb_scancode_upd),
-		
-		.serial_mouse_tx(serial_mouse_tx),
-		.serial_mouse_rts(serial_mouse_rts),
-		
-		.AUD_L(audio_l),
-		.AUD_R(audio_r),
+assign TAPE_OUT = 1'b0;
+assign BEEPER = 1'b0;
 
-`ifdef PHYSICAL_IDE
-		.ide_cs_n(WCS_N),
-		.ide_rd_n(WRD_N),
-		.ide_wr_n(WWR_N),
-		.ide_a(WA),
-		.ide_d(WD),
-		.ide_reset_n(WRESET_N),		
-`else
-		.SD_nCS(SD_CS_N),
-		.SD_DI(SD_DI),
-		.SD_CK(SD_CLK),
-		.SD_DO(SD_DO),
-`endif
-		.btn_green_n_i(~kb_swap_video),
-		.btn_yellow_n_i(~kb_turbo_mode)
-	);
-	
-	//---------- MCU ------------
+// burst transfers from the mcu (karabas-go-firmware docs/burst_protocol.md):
+// firmware IO0 (GPIO14) = MCU_SPI_IO[1] (M11), IO1 (GPIO2) = MCU_SPI_IO[0] (N9)
+wire mcu_burst_ready;
+assign MCU_SPI_IO[0] = mcu_burst_ready;
+assign MCU_SPI_IO[1] = 1'bz;
 
-	wire [7:0] hid_kb_status, hid_kb_dat0, hid_kb_dat1, hid_kb_dat2, hid_kb_dat3, hid_kb_dat4, hid_kb_dat5;
-	wire [7:0] ms_x, ms_y;
-	wire [2:0] ms_b;
-	wire ms_upd;
-	wire [12:0] joy_l, joy_r;
-	wire [15:0] softsw_command, osd_command;
-	wire mcu_busy;
+//---------- Clocks ------------
 
-	mcu mcu(
-		.CLK(clk_50),
-		.N_RESET(~areset),
-		
-		.MCU_MOSI(MCU_MOSI),
-		.MCU_MISO(MCU_MISO),
-		.MCU_SCK(MCU_SCK),
-		.MCU_SS(MCU_CS_N),
-		
-		.MS_X(ms_x),
-		.MS_Y(ms_y),
-		.MS_Z(ms_z),
-		.MS_B(ms_b),
-		.MS_UPD(ms_upd),
-		
-		.KB_STATUS(hid_kb_status),
-		.KB_DAT0(hid_kb_dat0),
-		.KB_DAT1(hid_kb_dat1),
-		.KB_DAT2(hid_kb_dat2),
-		.KB_DAT3(hid_kb_dat3),
-		.KB_DAT4(hid_kb_dat4),
-		.KB_DAT5(hid_kb_dat5),
-		
-		.KB_SCANCODE(hid_kb_scancode),
-		.KB_SCANCODE_UPD(hid_kb_scancode_upd),
-		
-		.JOY_L(joy_l),
-		.JOY_R(joy_r),
-		
-		.RTC_A(8'b00000000),
-		.RTC_DI(8'b00000000),
-		.RTC_DO(),
-		.RTC_CS(1'b0),
-		.RTC_WR_N(1'b1),
-		
-		.UART_RX_DATA(),
-		.UART_RX_IDX(),
-		.UART_TX_DATA(8'b00000000),
-		.UART_TX_WR(1'b0),
-		
-		.ROMLOADER_ACTIVE(),
-		.ROMLOAD_ADDR(),
-		.ROMLOAD_DATA(),
-		.ROMLOAD_WR(),
-		
-		.SOFTSW_COMMAND(softsw_command),	
-		.OSD_COMMAND(osd_command),
-		
-		.BUSY(mcu_busy)
-	);
+wire clk_100, clk_50, clk_28_571;
+wire locked;
+wire areset;
 
-	//---------- Keyboard parser ------------
+dcm dcm_system
+(
+	.CLK_IN1(CLK_50MHZ),
+	.CLK_OUT1(clk_100),
+	.CLK_OUT2(clk_50),
+	.CLK_OUT3(clk_28_571),
+	.LOCKED(locked)
+);
 
-	hid_parser hid_parser(
-		.CLK(clk_50),
-		.RESET(areset),
+assign areset = ~locked;
 
-		.MS_X(ms_x),
-		.MS_Y(ms_y),
-		.MS_B(ms_b),
-		.MS_UPD(ms_upd),
-		
-		.MOUSE_TX(serial_mouse_tx),
-		.MOUSE_RTS(serial_mouse_rts)		
-	);
-	
-	//---------- Soft switches ------------
-	
-	wire kb_reset;
-	
-	soft_switches soft_switches(
-		.CLK(clk_50),
-		
-		.SOFTSW_COMMAND(softsw_command),
+//---------- PCXT ------------
 
-		// todo: more modes (incl. soft buttons and mode switches)
-		.SWAP_VIDEO(kb_swap_video),
-		.TURBO_MODE(kb_turbo_mode),
-		.RESET(kb_reset)
-	);
-	
-	assign btn_reset_n = ~kb_reset & ~mcu_busy;
+wire [23:0] rgb;
+wire hs, vs;
+wire [15:0] audio_l, audio_r;
 
-	//---------- DAC ------------
+// MCU_SCK is not on a global clock pin: bursts at the link clock
+karabas_pcxt #(.BURST_MAX_MHZ(0)) pcxt(
+	.clk_100(clk_100),
+	.clk_50(clk_50),
+	.clk_vga(clk_28_571),
+	.areset(areset),
 
-	PCM5102 PCM5102(
-		.clk(clk_28_571),
-		.reset(areset),
-		.left(audio_l),
-		.right(audio_r),
-		.din(DAC_DAT),
-		.bck(DAC_BCK),
-		.lrck(DAC_LRCK)
-	);
-	assign DAC_MUTE = 1'b1; // soft mute, 0 = mute, 1 = unmute
+	.sram_a(MA),
+	.sram_d(MD[7:0]),
+	.sram_we_n(MWR_N[0]),
 
-	//---------- V_CLK -------------
-	
-	ODDR2 uODDR2(
-		.Q(V_CLK),
-		.C0(clk_28_571),
-		.C1(~clk_28_571),
-		.CE(1'b1),
-		.D0(1'b1),
-		.D1(1'b0),
-		.R(1'b0),
-		.S(1'b0)
-	);
-	
+	.ide_cs_n(WCS_N),
+	.ide_rd_n(WRD_N),
+	.ide_wr_n(WWR_N),
+	.ide_a(WA),
+	.ide_d(WD),
+	.ide_reset_n(WRESET_N),
+	.sd_cs_n(SD_CS_N),
+	.sd_di(SD_DI),
+	.sd_clk(SD_CLK),
+	.sd_do(SD_DO),
+
+	.mcu_cs_n(MCU_CS_N),
+	.mcu_sck(MCU_SCK),
+	.mcu_mosi(MCU_MOSI),
+	.mcu_miso(MCU_MISO),
+	.mcu_burst_cs_n(MCU_SPI_IO[1]),
+	.mcu_burst_ready(mcu_burst_ready),
+
+	.vga_rgb(rgb),
+	.vga_hs(hs),
+	.vga_vs(vs),
+	.dvi_only(),
+
+	.audio_l(audio_l),
+	.audio_r(audio_r),
+
+	.kb_reset()
+);
+
+//---------- VGA ------------
+
+assign VGA_R = rgb[23:16];
+assign VGA_G = rgb[15:8];
+assign VGA_B = rgb[7:0];
+assign VGA_HS = hs;
+assign VGA_VS = vs;
+
+ODDR2 uODDR2(
+	.Q(V_CLK),
+	.C0(clk_28_571),
+	.C1(~clk_28_571),
+	.CE(1'b1),
+	.D0(1'b1),
+	.D1(1'b0),
+	.R(1'b0),
+	.S(1'b0)
+);
+
+//---------- DAC ------------
+
+kg_pcm5102 #(.DIV_BITS(2)) pcm5102( // 1.79 MHz bck, 55.8 kHz, as pcm5102.v before
+	.clk(clk_28_571),
+	.reset(areset),
+	.left(audio_l),
+	.right(audio_r),
+	.din(DAC_DAT),
+	.bck(DAC_BCK),
+	.lrck(DAC_LRCK)
+);
+assign DAC_MUTE = 1'b1; // soft mute, 0 = mute, 1 = unmute
+
 endmodule
