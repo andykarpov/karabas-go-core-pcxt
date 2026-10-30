@@ -86,7 +86,14 @@ module PERIPHERALS (
 	output   wire              ide_rd_n,
 	output   wire              ide_wr_n,
 	output   wire  [2:0]       ide_a,
+`ifdef KARABASGO
+	// karabas: the IDE data bus split, so that the board can put the CF card and the image
+	// disks (hdf_ata) on it without a tristate bus inside the FPGA
+	output   wire  [15:0]      ide_dout,
+	input    wire  [15:0]      ide_din,
+`else
 	inout    wire  [15:0]      ide_d,
+`endif
 	output   wire              ide_reset_n,
 `else
    output   wire              spi_clk,
@@ -872,8 +879,13 @@ module PERIPHERALS (
 	assign ide_rd_n = ide0_io_read_n;
 	assign ide_wr_n = ide0_io_write_n;
 	assign ide_a = ide0_address;
+`ifdef KARABASGO
+	assign ide_dout = ide0_data_bus_out;
+	assign ide0_data_bus_in = ide_din;
+`else
 	assign ide_d = (~ide0_io_write_n) ? ide0_data_bus_out : 16'hZZ;
 	assign ide0_data_bus_in = ide_d;
+`endif
 	assign ide_reset_n = ~reset;
 `else	 
     //

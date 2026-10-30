@@ -10,8 +10,15 @@
  (VGA or HDMI) and the audio DAC.
 
  Soft switch n = OSD item n of core*.json:
-   0 Video mode (RGB / VGA)   1 Turbo   2 Reset (a pulse of the firmware: resets the whole PC,
-                                          as after the splash screen)
+   0 Video mode (RGB / VGA)   1 Turbo   2 HDD0 (CF card / Image)
+   3 HDD0 image (file slot 0, no value)   4 HDD1 image (file slot 1, no value)
+   5 Reset (a pulse of the firmware: resets the whole PC, as after the splash screen)
+
+ Disks (PHYSICAL_IDE): the XT-IDE of system (XT2IDE, ports 300h) talks to the CF card on the W*
+ pins and to hdf_ata, the image disks of the file mounter (img_sdc, slots 0 and 1). HDD0 = CF
+ card: the card is device 0, the HDD1 image device 1 (the card ignores the commands for device 1);
+ the read data comes from the card while DEV = 0. HDD0 = Image: the card is off (no chip select),
+ the images are devices 0 and 1.
 */
 
 module karabas_pcxt #(
@@ -71,6 +78,10 @@ wire kb_swap_video, kb_turbo_mode;
 wire [7:0] xt_scancode;
 wire xt_scancode_upd;
 wire [15:0] aud_l, aud_r;
+wire [1:0] sys_ide_cs_n;
+wire sys_ide_rd_n, sys_ide_wr_n, sys_ide_reset_n;
+wire [2:0] sys_ide_a;
+wire [15:0] sys_ide_dout, sys_ide_din;
 
 system sys_inst
 (
@@ -98,17 +109,13 @@ system sys_inst
 	.AUD_R(aud_r),
 
 `ifdef PHYSICAL_IDE
-	.ide_cs_n(ide_cs_n),
-	.ide_rd_n(ide_rd_n),
-	.ide_wr_n(ide_wr_n),
-	.ide_a(ide_a),
-	.ide_d(ide_d),
-	.ide_reset_n(ide_reset_n),
-`else
-	.SD_nCS(sd_cs_n),
-	.SD_DI(sd_di),
-	.SD_CK(sd_clk),
-	.SD_DO(sd_do),
+	.ide_cs_n(sys_ide_cs_n),
+	.ide_rd_n(sys_ide_rd_n),
+	.ide_wr_n(sys_ide_wr_n),
+	.ide_a(sys_ide_a),
+	.ide_dout(sys_ide_dout),
+	.ide_din(sys_ide_din),
+	.ide_reset_n(sys_ide_reset_n),
 `endif
 	.btn_green_n_i(~kb_swap_video),
 	.btn_yellow_n_i(~kb_turbo_mode),
@@ -128,16 +135,6 @@ system sys_inst
 	assign ide_reset_n = 1'b1;
 `endif
 
-// the mix of system is combinational: a register in clk_50 before it leaves for the DAC / HDMI
-// (zhdmi_top takes it into the pixel clock when two samples there are the same)
-reg [15:0] audio_l_r = 16'h0, audio_r_r = 16'h0;
-always @(posedge clk_50) begin
-	audio_l_r <= aud_l;
-	audio_r_r <= aud_r;
-end
-assign audio_l = audio_l_r;
-assign audio_r = audio_r_r;
-
 //---------- MCU ------------
 
 wire [7:0] ms_x, ms_y;
@@ -146,6 +143,18 @@ wire ms_upd;
 wire [15:0] softsw_command, osd_command;
 wire mcu_dvi_only;
 
+wire [7:0] img_mounted;
+wire [63:0] img_size;
+wire img_data_wr;
+wire [8:0] img_data_addr;
+wire [7:0] img_data;
+wire img_result_wr;
+wire [7:0] img_result;
+wire [15:0] img_sum;
+wire img_q_wr;
+wire [23:0] img_q_di;
+wire img_q_ack;
+
 kg_mcu #(
 	.BURST_MAX_MHZ(BURST_MAX_MHZ),
 	.CS_FILTER(3),
@@ -153,7 +162,7 @@ kg_mcu #(
 	.ENABLE_UART(0),
 	.ENABLE_MATRIX(0),
 	.ENABLE_DEBUG(0),
-	.ENABLE_IMG(0),
+	.ENABLE_IMG(1),
 	.ENABLE_FILE(0),
 	.ENABLE_FT(0),
 	.ENABLE_SD2(0),
@@ -245,17 +254,17 @@ kg_mcu #(
 	.HWID(),
 	.DVI_ONLY(mcu_dvi_only),
 
-	.IMG_MOUNTED(),
-	.IMG_SIZE(),
-	.IMG_DATA_WR(),
-	.IMG_DATA_ADDR(),
-	.IMG_DATA(),
-	.IMG_RESULT_WR(),
-	.IMG_RESULT(),
-	.IMG_SUM(),
-	.IMG_Q_WR(1'b0),
-	.IMG_Q_DI(24'h0),
-	.IMG_Q_ACK(),
+	.IMG_MOUNTED(img_mounted),
+	.IMG_SIZE(img_size),
+	.IMG_DATA_WR(img_data_wr),
+	.IMG_DATA_ADDR(img_data_addr),
+	.IMG_DATA(img_data),
+	.IMG_RESULT_WR(img_result_wr),
+	.IMG_RESULT(img_result),
+	.IMG_SUM(img_sum),
+	.IMG_Q_WR(img_q_wr),
+	.IMG_Q_DI(img_q_di),
+	.IMG_Q_ACK(img_q_ack),
 	.IMG_PHYS_WR(),
 	.IMG_PHYS(),
 	.IMG_FLUSH(),
@@ -295,10 +304,11 @@ hid_parser hid_parser(
 
 //---------- Soft switches ------------
 
-wire [23:0] softsw_regs;
+// register n = OSD item n of core*.json; the file items (3, 4) have no value
+wire [47:0] softsw_regs;
 kg_soft_switches #(
-	.N(3),
-	.INIT(24'h00_00_01)
+	.N(6),
+	.INIT(48'h00_00_00_01_00_01)
 ) u_softsw(
 	.clk(clk_50),
 	.command(softsw_command),
@@ -306,9 +316,52 @@ kg_soft_switches #(
 	.upd()
 );
 
+wire kb_hdd0_image;
 assign kb_swap_video = softsw_regs[0*8];
 assign kb_turbo_mode = softsw_regs[1*8];
-assign kb_reset      = softsw_regs[2*8];
+assign kb_hdd0_image = softsw_regs[2*8];
+assign kb_reset      = softsw_regs[5*8];
+
+`ifdef PHYSICAL_IDE
+//---------- Disks: CF card and images ------------
+
+pcxt_disks disks(
+	.clk(clk_50),
+	.areset(areset),
+	.hdd0_image(kb_hdd0_image),
+
+	.sys_cs_n(sys_ide_cs_n),
+	.sys_rd_n(sys_ide_rd_n),
+	.sys_wr_n(sys_ide_wr_n),
+	.sys_a(sys_ide_a),
+	.sys_dout(sys_ide_dout),
+	.sys_din(sys_ide_din),
+	.sys_reset_n(sys_ide_reset_n),
+
+	.cf_cs_n(ide_cs_n),
+	.cf_rd_n(ide_rd_n),
+	.cf_wr_n(ide_wr_n),
+	.cf_a(ide_a),
+	.cf_d(ide_d),
+	.cf_reset_n(ide_reset_n),
+
+	.img_mounted(img_mounted),
+	.img_size(img_size),
+	.img_data_wr(img_data_wr),
+	.img_data_addr(img_data_addr),
+	.img_data(img_data),
+	.img_result_wr(img_result_wr),
+	.img_result(img_result),
+	.img_sum(img_sum),
+	.img_q_wr(img_q_wr),
+	.img_q_di(img_q_di),
+	.img_q_ack(img_q_ack)
+);
+`else
+assign img_q_wr = 1'b0;
+assign img_q_di = 24'h0;
+`endif
+
 
 //---------- OSD ------------
 

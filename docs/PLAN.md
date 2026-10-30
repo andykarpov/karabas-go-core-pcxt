@@ -78,6 +78,8 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 ## Ф4. Образы HDD
 
+Сделано 2026-10-30 (сборка 26103023, порядок изменён: Ф4 перед Ф3, чтобы проверять на железе с образом): `rtl/pcxt_disks.v` (защёлка шины XT2IDE, `img_sdc` + `hdf_ata`, мультиплексор CF / образ), шина данных IDE в `HW/` разделена на `ide_dout` / `ide_din` под `KARABASGO`, пункты OSD HDD0 (CF card / Image), слоты HDD0 / HDD1, `spi_freq` 32 на Mini G. Тест `sim/run_disks_sim.sh`: 0 ошибок, без защёлки падает. Запись в симуляции не проверяется (модель MCU только читает). На железе не проверено.
+
 - `img_sdc` + `hdf_ata` из modules, по образцу nanomig / next186. Слоты `HDD0` / `HDD1` (`.img .vhd .bin .raw`).
 - Подключение: XT-IDE BIOS работает через `XT2IDE.v` (8-битная шина XT → 16-битный IDE). `hdf_ata` встаёт на место CF-карты за `XT2IDE` (16-битная сторона), как CF / HDF в nanomig: устройство 0 — CF или образ, устройство 1 — образ. Пункт OSD «HDD0: CF card / Image».
 - Сброс `hdf_ata` от сброса CPU (урок next186).

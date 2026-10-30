@@ -106,7 +106,14 @@ module CHIPSET (
 	output   wire              ide_rd_n,
 	output   wire              ide_wr_n,
 	output   wire  [2:0]       ide_a,
+`ifdef KARABASGO
+	// karabas: the IDE data bus split, so that the board can put the CF card and the image
+	// disks (hdf_ata) on it without a tristate bus inside the FPGA
+	output   wire  [15:0]      ide_dout,
+	input    wire  [15:0]      ide_din,
+`else
 	inout    wire  [15:0]      ide_d,
+`endif
 	output   wire              ide_reset_n,
 `else
    output   wire              spi_clk,
@@ -300,7 +307,12 @@ module CHIPSET (
 		.ide_rd_n(ide_rd_n),
 		.ide_wr_n(ide_wr_n),
 		.ide_a(ide_a),
+`ifdef KARABASGO
+		.ide_dout(ide_dout),
+		.ide_din(ide_din),
+`else
 		.ide_d(ide_d),
+`endif
 		.ide_reset_n(ide_reset_n),
 `else
       .spi_clk(spi_clk),
