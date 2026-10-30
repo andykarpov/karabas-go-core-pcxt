@@ -135,6 +135,29 @@ system sys_inst
 	assign ide_reset_n = 1'b1;
 `endif
 
+//---------- Audio ------------
+
+// the mix of system is combinational: a register in clk_50 before it leaves for the DAC / HDMI
+// (zhdmi_top takes it into the pixel clock when two samples there are the same)
+reg [15:0] audio_l_r = 16'h0, audio_r_r = 16'h0;
+always @(posedge clk_50) begin
+	audio_l_r <= aud_l;
+	audio_r_r <= aud_r;
+end
+assign audio_l = audio_l_r;
+assign audio_r = audio_r_r;
+
+// level meters of the mcu (dot matrix): 2^20 clocks at 50 MHz = 21 ms
+wire [23:0] matrix_cmd;
+wire matrix_cmd_wr;
+audio_peaks #(.PERIOD_BITS(20)) audio_peaks(
+	.clk(clk_50),
+	.audio_l(audio_l_r),
+	.audio_r(audio_r_r),
+	.cmd_wr(matrix_cmd_wr),
+	.cmd(matrix_cmd)
+);
+
 //---------- MCU ------------
 
 wire [7:0] ms_x, ms_y;
@@ -160,7 +183,7 @@ kg_mcu #(
 	.CS_FILTER(3),
 	.ENABLE_RTC(0),
 	.ENABLE_UART(0),
-	.ENABLE_MATRIX(0),
+	.ENABLE_MATRIX(1),
 	.ENABLE_DEBUG(0),
 	.ENABLE_IMG(1),
 	.ENABLE_FILE(0),
@@ -246,8 +269,8 @@ kg_mcu #(
 	.SD2_MISO(1'b1),
 	.SD2_CS_N(),
 
-	.MATRIX_CMD(24'h0),
-	.MATRIX_CMD_WR(1'b0),
+	.MATRIX_CMD(matrix_cmd),
+	.MATRIX_CMD_WR(matrix_cmd_wr),
 	.DEBUG_ADDR(16'h0),
 	.DEBUG_DATA(16'h0),
 
@@ -395,10 +418,11 @@ end
 // low at 720..880; the overlay counts from the rising hsync (880), a step per 2 clocks: the 256
 // pixels (512 clocks) of the OSD centred at 32 + 64 clocks. A frame of 524 lines, the picture at
 // 0..399, vsync high at 448..479; the overlay counts from its rising edge, a step per 2 lines:
-// the 416 lines of the OSD centred at 76 - 8.
+// the 416 lines of the OSD centred at 76 - 8, then two rows (2 x 16 lines) up: its bottom came
+// close to the edge of the screen (Mini G, HDMI).
 kg_osd_overlay #(
 	.H_OFFSET(48),
-	.V_OFFSET(34)
+	.V_OFFSET(18)
 ) overlay(
 	.clk(clk_vga),
 	.rgb_i({r, 2'b00, g, 2'b00, b, 2'b00}),
