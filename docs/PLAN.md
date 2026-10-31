@@ -95,6 +95,8 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 Mini G 26103103 на железе: Sergey BIOS и загрузчик ROM работают, HDD грузится; с дискеты нет, `DIR A:` виснет, лог прошивки: слот 2 читается непрерывно (~530 секторов/с с самого старта). Причина: KF8237 нашего форка (2022-10) терял TC в тактах ожидания `Ready.v` (`dma_ready` — короткий импульс), команда чтения не кончалась. KF8237 заменён на sv2v MiSTer `baaac36` (фиксы `fc23647`, `49b97f9`); симуляция `sim/run_dma_sim.sh` воспроизводит баг на старом коде. Сборка 26103104.
 
+Mini G 26103104 на железе: загрузка с дискеты до «Starting MS-DOS...», чтение DEBUG `L` в страницы 1, 2, 9 и корневой каталог — верно. DOS с дискеты: DIR давал «Divide overflow». Причина: микрокод MCL86 MiSTer `8f9c5d1` (у нас), NOT r/m8 портил CF / OF; сборка 26103105 с 8 словами `6180e66` + `6db8e53` — ошибка ушла, DOS с дискеты грузится (CONFIG.SYS без COUNTRY, без AUTOEXEC), DIR A: работает. Открыто: COUNTRY=001 и AUTOEXEC.BAT (SETUP) с новым микрокодом, запись, Go / Mini.
+
 - FDC: `floppy.v` из MiSTer (ao486, Aleksander Osman / Alexey Melnikov, BSD-лицензия; немного SV — перевести на Verilog-2001). Порты 0x3F0–0x3F7, DMA канал 2 (`dma_request[2]` уже выведен из `Chipset`), IRQ 6.
 - Его интерфейс `mgmt` (сектора от HPS MiSTer) заменить на запросы к `img_sdc`: слоты `FDD A` / `FDD B` (`.img .ima`, 360K / 720K / 1.2M / 1.44M по размеру файла), write protect.
 - DIP-переключатели числа дисководов — по наличию образов (как «floppy presence» в MiSTer).
