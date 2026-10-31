@@ -72,6 +72,24 @@ module system(
 	// karabas: MIDI OUT of the MPU-401 (330h)
 	,output   wire              midi_tx
 `endif
+`ifdef GAME_PORT
+	// karabas: the two USB pads of the mcu (Sega MD2 bits) on the game port (201h)
+	,input    wire  [12:0]      joy0
+	,input    wire  [12:0]      joy1
+`endif
+`ifdef LPT_USB
+	// karabas: LPT1 (378h) on the USB printer of the mcu (kg_mcu_printer)
+	,output   wire  [7:0]       prn_data
+	,output   wire              prn_wr
+	,input    wire              prn_busy
+`endif
+`ifdef COM2_USB
+	// karabas: COM2 (2F8h) on the USB serial port of the mcu (kg_mcu_uart)
+	,input    wire  [7:0]       com2_rx_data
+	,input    wire  [7:0]       com2_rx_idx
+	,output   wire              com2_tx_wr
+	,output   wire  [7:0]       com2_tx_data
+`endif
 	
 	/*
 	output	wire					LED,
@@ -376,11 +394,6 @@ reg splash_status = 1'b0;
 	     .kb_scancode_upd                    (kb_scancode_upd),
 		  .serial_mouse_tx                    (serial_mouse_tx),
 		  .serial_mouse_rts                   (serial_mouse_rts),
-//		  .joy_opts                           (joy_opts),                          //Joy0-Disabled, Joy0-Type, Joy1-Disabled, Joy1-Type, turbo_sync
-//      .joy0                               (status[28] ? joy1 : joy0),
-//      .joy1                               (status[28] ? joy0 : joy1),
-//		  .joya0                              (status[28] ? joya1 : joya0),
-//		  .joya1                              (status[28] ? joya0 : joya1),
 		  .clk_en_opl2                        (cen_opl2),
 		  .jtopl2_snd_e                       (jtopl2_snd_e),
 		  .tandy_snd_e                        (tandy_snd_e),
@@ -423,6 +436,21 @@ reg splash_status = 1'b0;
 `endif
 `ifdef MIDI_MPU401
 		.midi_tx(midi_tx),
+`endif
+`ifdef GAME_PORT
+		.joy0(joy0),
+		.joy1(joy1),
+`endif
+`ifdef LPT_USB
+		.prn_data(prn_data),
+		.prn_wr(prn_wr),
+		.prn_busy(prn_busy),
+`endif
+`ifdef COM2_USB
+		.com2_rx_data(com2_rx_data),
+		.com2_rx_idx(com2_rx_idx),
+		.com2_tx_wr(com2_tx_wr),
+		.com2_tx_data(com2_tx_data),
 `endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),

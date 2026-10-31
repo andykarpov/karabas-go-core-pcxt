@@ -48,11 +48,24 @@ module PERIPHERALS (
 	input		wire					kb_scancode_upd,	
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
-//	input		wire	[4:0]			joy_opts,
-//	input		wire	[31:0]		joy0,
-//	input		wire	[31:0]		joy1,
-//	input		wire	[15:0]		joya0,
-//	input		wire	[15:0]		joya1,
+`ifdef GAME_PORT
+	// karabas: two joysticks from the USB pads of the mcu (Sega MD2 bits), game_port.v
+	input		wire	[12:0]		joy0,
+	input		wire	[12:0]		joy1,
+`endif
+`ifdef LPT_USB
+	// karabas: LPT1 (378h) on the USB printer of the mcu (kg_mcu_printer): a byte per strobe
+	output	wire	[7:0]			prn_data,
+	output	reg					prn_wr,
+	input		wire					prn_busy,
+`endif
+`ifdef COM2_USB
+	// karabas: COM2 (2F8h, IRQ 3) on the USB serial port of the mcu (kg_mcu_uart), com_usb.v
+	input		wire	[7:0]			com2_rx_data,
+	input		wire	[7:0]			com2_rx_idx,
+	output	wire					com2_tx_wr,
+	output	wire	[7:0]			com2_tx_data,
+`endif
 	input		wire					clk_en_opl2,
 	output	wire	[15:0]		jtopl2_snd_e,
 	input		wire					adlibhide,
@@ -169,7 +182,10 @@ module PERIPHERALS (
 	wire timer_chip_select_n = iorq && chip_select_n[2];
 	wire ppi_chip_select_n = iorq && chip_select_n[3];
 	assign dma_page_chip_select_n = iorq && chip_select_n[4];
-//	wire joystick_select = (iorq && ~address_enable_n) && (address[15:3] == (16'h0200 >> 3));
+`ifdef GAME_PORT
+	// without iorq, which ends with the strobe (the write is taken at its end)
+	wire joystick_select = ~address_enable_n && (address[15:3] == (16'h0200 >> 3));
+`endif
 	wire uart_cs = ~address_enable_n && ({address[15:3], 3'd0} == 16'h03f8);
 	wire opl_chip_select_n = ~((iorq && ~address_enable_n) && (address[15:1] == (16'h0388 >> 1)));
 	wire cga_chip_select_n = ~((~iorq && ~address_enable_n) && (address[19:15] == 5'b10111));
@@ -240,6 +256,24 @@ module PERIPHERALS (
 `endif
 	wire [7:0] interrupt_data_bus_out;
 	wire interrupt_to_cpu_buf;
+	// the requests of IRQ 3 (COM2), 4 (COM1, the mouse), 6 (the floppy)
+	wire irq3, irq4, irq6;
+`ifdef MOUSE_COM1
+	assign irq4 = uart_interrupt & ~uart_cs;
+`else
+	assign irq4 = interrupt_request[4];
+`endif
+`ifdef FLOPPY
+	assign irq6 = fdd_interrupt;
+`else
+	assign irq6 = interrupt_request[6];
+`endif
+`ifdef COM2_USB
+	wire com2_irq;
+	assign irq3 = com2_irq;
+`else
+	assign irq3 = interrupt_request[3];
+`endif
 	KF8259 u_KF8259(
 		.clock(clock),
 		.reset(reset),
@@ -253,19 +287,7 @@ module PERIPHERALS (
 		.slave_program_n(1'b1),
 		.interrupt_acknowledge_n(interrupt_acknowledge_n),
 		.interrupt_to_cpu(interrupt_to_cpu_buf),
-`ifdef FLOPPY
-`ifdef MOUSE_COM1
-		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`else
-		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`endif
-`else
-`ifdef MOUSE_COM1
-		.interrupt_request({interrupt_request[7:5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`else
-		.interrupt_request({interrupt_request[7:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`endif
-`endif		
+		.interrupt_request({interrupt_request[7], irq6, interrupt_request[5], irq4, irq3, interrupt_request[2], keybord_interrupt, timer_interrupt})
 	);
 	
 	always @(posedge clock or posedge reset)
@@ -963,21 +985,82 @@ module PERIPHERALS (
 			fdd_readdata <= fdd_dma_readdata;
 `endif
 	 
-	/*
-	wire [7:0] joy_data;
-	tandy_pcjr_joy joysticks(
+`ifdef LPT_USB
+	// LPT1: 378h data (read back: the BIOS finds the port so), 379h status (bit 7 not busy, 6 ACK
+	// low for 5 us when the printer is ready again after a byte, 5 paper out 0, 4 selected, 3 no
+	// error), 37Ah control (read back; a rising bit 0, STROBE, sends the data byte: the BIOS sets
+	// and clears it). INIT, AUTOFD, SELECTIN and the IRQ 7 enable are only stored.
+	wire lpt_port = ~address_enable_n && (address[15:2] == (16'h0378 >> 2));
+	reg [4:0] lpt_ctrl = 5'b00100;
+	reg lpt_sent = 1'b0;
+	reg [7:0] lpt_ack = 8'd0;
+	reg prn_busy_d = 1'b1;
+	reg [7:0] lpt_wdata = 8'h00;
+	assign prn_data = lpt_data;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			lpt_wdata <= internal_data_bus;
+		prn_wr <= 1'b0;
+		prn_busy_d <= prn_busy;
+		if (io_write_n & ~prev_io_write_n & lpt_port && address[1:0] == 2'd2) begin
+			lpt_ctrl <= lpt_wdata[4:0];
+			if (lpt_wdata[0] && !lpt_ctrl[0]) begin
+				prn_wr <= 1'b1;
+				lpt_sent <= 1'b1;
+			end
+		end
+		if (lpt_ack != 8'd0)
+			lpt_ack <= lpt_ack - 1'd1;
+		if (lpt_sent && prn_busy_d && !prn_busy) begin
+			lpt_sent <= 1'b0;
+			lpt_ack <= 8'd250;
+		end
+	end
+	wire [7:0] lpt_status = {~prn_busy, lpt_ack == 8'd0, 1'b0, 1'b1, 1'b1, 3'b111};
+	wire [7:0] lpt_readdata = (address[1:0] == 2'd0) ? lpt_data :
+		(address[1:0] == 2'd1) ? lpt_status : {3'b111, lpt_ctrl};
+`endif
+
+`ifdef COM2_USB
+	// a write at the end of its strobe, a read latched at its start (it pops RBR, clears THRE)
+	wire com2_cs = ~address_enable_n && (address[15:3] == (16'h02F8 >> 3));
+	reg [7:0] com2_wdata = 8'h00;
+	reg [7:0] com2_readdata = 8'h00;
+	wire [7:0] com2_readdata_1;
+	wire com2_read = ~io_read_n & prev_io_read_n & com2_cs;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			com2_wdata <= internal_data_bus;
+		if (com2_read)
+			com2_readdata <= com2_readdata_1;
+	end
+	com_usb com2(
 		.clk(clock),
 		.reset(reset),
-		.en(joystick_select && ~io_write_n),
-		.turbo_mode(turbo_mode),
-		.joy_opts(joy_opts),
+		.address(address[2:0]),
+		.write(io_write_n & ~prev_io_write_n & com2_cs),
+		.read(com2_read),
+		.writedata(com2_wdata),
+		.readdata(com2_readdata_1),
+		.irq(com2_irq),
+		.rx_data(com2_rx_data),
+		.rx_idx(com2_rx_idx),
+		.tx_wr(com2_tx_wr),
+		.tx_data(com2_tx_data)
+	);
+`endif
+
+`ifdef GAME_PORT
+	wire [7:0] joy_data;
+	game_port joysticks(
+		.clk(clock),
+		.reset(reset),
+		.start(io_write_n & ~prev_io_write_n & joystick_select),
 		.joy0(joy0),
 		.joy1(joy1),
-		.joya0(joya0),
-		.joya1(joya1),
 		.d_out(joy_data)
 	);
-	*/
+`endif
 	always @(posedge clock)
 		if (~interrupt_acknowledge_n) begin
 			data_bus_out_from_chipset <= 1'b1;
@@ -1032,10 +1115,17 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= cga_vram_cpu_dout;
 		end
+`ifdef LPT_USB
+		else if (lpt_port && address[1:0] != 2'd3 && ~io_read_n) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= lpt_readdata;
+		end
+`else
 		else if (lpt_cs && ~io_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= lpt_data;
 		end
+`endif
 		/*
       else if ((xtctl_chip_select) && (~io_read_n))
       begin
@@ -1072,12 +1162,18 @@ module PERIPHERALS (
           data_bus_out <= uart_readdata;
       end
 `endif
-		/*
+`ifdef COM2_USB
+		else if (com2_cs && ~io_read_n) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= com2_readdata;
+		end
+`endif
+`ifdef GAME_PORT
 		else if (joystick_select && ~io_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= joy_data;
 		end
-		*/
+`endif
 		else begin
 			data_bus_out_from_chipset <= 1'b0;
 			data_bus_out <= 8'b00000000;
