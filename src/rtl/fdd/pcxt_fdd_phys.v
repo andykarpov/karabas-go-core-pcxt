@@ -38,6 +38,8 @@
 module pcxt_fdd_phys #(
 	parameter CLK_MHZ   = 50,
 	parameter STEP_US   = 4000,         // step rate
+	parameter DIR_US    = 8,            // DIR steady before STEP (the timer gives 7..8 us)
+	parameter PULSE_US  = 8,            // the STEP pulse (7..8 us)
 	parameter SETTLE_US = 16000,        // head settle after the last step
 	parameter SPIN_US   = 500000,       // motor spin up
 	parameter NOIDX_US  = 600000,       // no index pulse: no disk
@@ -592,16 +594,20 @@ always @(posedge clk) begin
 				st <= S_DIR;
 			end
 
-		// DIR before STEP, a 2 us pulse, then the step rate
+		// DIR before STEP, the pulse, then the step rate. The timer counts whole microseconds
+		// from a clear at any phase of the microsecond: n counts are n - 1 to n us. tmr_clr takes
+		// a clock: in the first clock of S_DIR / S_STEP tmr still has the time of the state
+		// before (the step rate), which ended both at once (a 20 ns STEP 20 ns after DIR: drives
+		// took few of them, the head stayed while trk counted).
 		S_DIR:
-			if (tmr >= 21'd2) begin
+			if (!tmr_clr && tmr >= DIR_US) begin
 				step <= 1'b1;
 				moved <= 1'b1;
 				tmr_clr <= 1'b1;
 				st <= S_STEP;
 			end
 		S_STEP:
-			if (tmr >= 21'd2) begin
+			if (!tmr_clr && tmr >= PULSE_US) begin
 				step <= 1'b0;
 				st <= S_STEPW;
 			end

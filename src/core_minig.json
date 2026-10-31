@@ -1,12 +1,12 @@
 {
     "id": "pcxt",
     "name": "PC XT",
-    "build": "26103116",
+    "build": "26103117",
     "bitstream": "karabas_minig_top.bin",
     "visible": true,
     "type": "osd",
     "order": 6,
-    "spi_freq": 32,
+    "spi_freq": 16,
     "eeprom_bank": 255,
     "roms": [
         {"filename": "rom/bios_sergey_xt.rom", "address": 0},
