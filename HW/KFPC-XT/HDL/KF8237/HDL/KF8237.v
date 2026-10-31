@@ -1,34 +1,62 @@
 `default_nettype none
-
+// karabas: sv2v of MiSTer PCXT rtl/KFPC-XT/HDL/KF8237/HDL/KF8237.sv at baaac36 (2022-10-29): the DMA TC fix
+// (fc23647: TC kept through wait states, it was lost with the short dma_ready of Ready.v), the
+// register write next to a DACK (49b97f9), "Improved bus speed" (baaac36)
 module KF8237 (
-	input		wire					clock,
-	input		wire					cpu_clock,
-	input		wire					reset,
-	input		wire					chip_select_n,
-	input		wire					ready,
-	input		wire					hold_acknowledge,
-	input		wire	[3:0] 		dma_request,
-	input		wire	[7:0] 		data_bus_in,
-	output	reg	[7:0] 		data_bus_out,
-	input		wire					io_read_n_in,
-	output	wire					io_read_n_out,
-	output	wire					io_read_n_io,
-	input		wire					io_write_n_in,
-	output	wire					io_write_n_out,
-	output	wire					io_write_n_io,
-	input		wire					end_of_process_n_in,
-	output	wire					end_of_process_n_out,
-	input		wire	[3:0] 		address_in,
-	output	wire	[15:0] 		address_out,
-	output	wire					output_highst_address,
-	output	wire					hold_request,
-	output	wire	[3:0] 		dma_acknowledge,
-	output	wire					address_enable,
-	output	wire					address_strobe,
-	output	wire					memory_read_n,
-	output	wire					memory_write_n
-	);
-
+	clock,
+	cpu_clock,
+	reset,
+	chip_select_n,
+	ready,
+	hold_acknowledge,
+	dma_request,
+	data_bus_in,
+	data_bus_out,
+	io_read_n_in,
+	io_read_n_out,
+	io_read_n_io,
+	io_write_n_in,
+	io_write_n_out,
+	io_write_n_io,
+	end_of_process_n_in,
+	end_of_process_n_out,
+	address_in,
+	address_out,
+	output_highst_address,
+	hold_request,
+	dma_acknowledge,
+	address_enable,
+	address_strobe,
+	memory_read_n,
+	memory_write_n
+);
+	reg _sv2v_0;
+	input wire clock;
+	input wire cpu_clock;
+	input wire reset;
+	input wire chip_select_n;
+	input wire ready;
+	input wire hold_acknowledge;
+	input wire [3:0] dma_request;
+	input wire [7:0] data_bus_in;
+	output reg [7:0] data_bus_out;
+	input wire io_read_n_in;
+	output wire io_read_n_out;
+	output wire io_read_n_io;
+	input wire io_write_n_in;
+	output wire io_write_n_out;
+	output wire io_write_n_io;
+	input wire end_of_process_n_in;
+	output wire end_of_process_n_out;
+	input wire [3:0] address_in;
+	output wire [15:0] address_out;
+	output wire output_highst_address;
+	output wire hold_request;
+	output wire [3:0] dma_acknowledge;
+	output wire address_enable;
+	output wire address_strobe;
+	output wire memory_read_n;
+	output wire memory_write_n;
 	reg prev_cpu_clock;
 	always @(posedge clock or posedge reset)
 		if (reset)
@@ -183,7 +211,9 @@ module KF8237 (
 		.end_of_process_n_in(end_of_process_n_in),
 		.end_of_process_n_out(end_of_process_n_out)
 	);
-	always @(*)
+	always @(*) begin
+		if (_sv2v_0)
+			;
 		if (output_highst_address)
 			data_bus_out = address_out[15:8];
 		else if (read_temporary_register || output_temporary_data)
@@ -194,4 +224,6 @@ module KF8237 (
 			data_bus_out = read_address_or_count;
 		else
 			data_bus_out = 8'h00;
+	end
+	initial _sv2v_0 = 0;
 endmodule

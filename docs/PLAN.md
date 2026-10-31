@@ -93,6 +93,8 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 На железе (Mini G 26103101, 2026-10-31): с образа MS-DOS 6.22 (1.44M) не стартует. Причина, вероятно, BIOS: Turbo XT 3.1 (`pcxt31.hex`, тот же, что `pcxt_pcxt31.rom` MiSTer) знает только дисководы 360K; README MiSTer: 720K / 1.44M — у Micro8088 / Sergey BIOS. Сборка 26103103: Sergey Kiselev XT BIOS 1.0.0a (MiSTer `pcxt_xtsergey.rom`, 16K FC000–FFFFF) и загрузчик ROM: BIOS и XTIDE BIOS из `roms` json через загрузчик `kg_mcu` (по предложению пользователя: менять BIOS без пересборки ядра).
 
+Mini G 26103103 на железе: Sergey BIOS и загрузчик ROM работают, HDD грузится; с дискеты нет, `DIR A:` виснет, лог прошивки: слот 2 читается непрерывно (~530 секторов/с с самого старта). Причина: KF8237 нашего форка (2022-10) терял TC в тактах ожидания `Ready.v` (`dma_ready` — короткий импульс), команда чтения не кончалась. KF8237 заменён на sv2v MiSTer `baaac36` (фиксы `fc23647`, `49b97f9`); симуляция `sim/run_dma_sim.sh` воспроизводит баг на старом коде. Сборка 26103104.
+
 - FDC: `floppy.v` из MiSTer (ao486, Aleksander Osman / Alexey Melnikov, BSD-лицензия; немного SV — перевести на Verilog-2001). Порты 0x3F0–0x3F7, DMA канал 2 (`dma_request[2]` уже выведен из `Chipset`), IRQ 6.
 - Его интерфейс `mgmt` (сектора от HPS MiSTer) заменить на запросы к `img_sdc`: слоты `FDD A` / `FDD B` (`.img .ima`, 360K / 720K / 1.2M / 1.44M по размеру файла), write protect.
 - DIP-переключатели числа дисководов — по наличию образов (как «floppy presence» в MiSTer).

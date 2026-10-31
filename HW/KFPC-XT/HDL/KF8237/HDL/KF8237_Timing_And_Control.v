@@ -1,51 +1,95 @@
 `default_nettype none
-
+// karabas: sv2v of MiSTer PCXT rtl/KFPC-XT/HDL/KF8237/HDL/KF8237_Timing_And_Control.sv at baaac36 (2022-10-29): the DMA TC fix
+// (fc23647: TC kept through wait states, it was lost with the short dma_ready of Ready.v), the
+// register write next to a DACK (49b97f9), "Improved bus speed" (baaac36)
 module KF8237_Timing_And_Control (
-	input		wire					clock,
-	input		wire					cpu_clock_posedge,
-	input		wire					cpu_clock_negedge,
-	input		wire					reset,
-	input		wire	[7:0]			internal_data_bus,
-	input		wire					write_command_register,
-	input		wire					write_mode_register,
-	input		wire					read_status_register,
-	input		wire					master_clear,
-	output	reg	[1:0]			dma_rotate,
-	output	wire	[3:0]			edge_request,
-	input		wire	[3:0]			dma_request_state,
-	input		wire	[3:0]			encoded_dma,
-	output	reg	[3:0]			dma_acknowledge_internal,
-	output	reg	[3:0]			transfer_register_select,
-	output	reg					initialize_current_register,
-	output	reg					address_hold_config,
-	output	reg					decrement_address_config,
-	output	reg					next_word,
-	input		wire					update_high_address,
-	input		wire					underflow,
-	output	reg					end_of_process_internal,
-	output	reg					lock_bus_control,
-	output	wire					output_temporary_data,
-	output	wire	[7:0]			temporary_register,
-	output	reg	[3:0]			terminal_count_state,
-	output	reg					hold_request,
-	input		wire					hold_acknowledge,
-	output	wire	[3:0]			dma_acknowledge,
-	output	reg					address_enable,
-	output	reg					address_strobe,
-	output	reg					output_highst_address,
-	output	reg					memory_read_n,
-	output	reg					memory_write_n,
-	output	reg					io_read_n_out,
-	output	reg					io_read_n_io,
-	output	reg					io_write_n_out,
-	output	reg					io_write_n_io,
-	input		wire					ready,
-	input		wire					end_of_process_n_in,
-	output	wire					end_of_process_n_out
-	);
-
+	clock,
+	cpu_clock_posedge,
+	cpu_clock_negedge,
+	reset,
+	internal_data_bus,
+	write_command_register,
+	write_mode_register,
+	read_status_register,
+	master_clear,
+	dma_rotate,
+	edge_request,
+	dma_request_state,
+	encoded_dma,
+	dma_acknowledge_internal,
+	transfer_register_select,
+	initialize_current_register,
+	address_hold_config,
+	decrement_address_config,
+	next_word,
+	update_high_address,
+	underflow,
+	end_of_process_internal,
+	lock_bus_control,
+	output_temporary_data,
+	temporary_register,
+	terminal_count_state,
+	hold_request,
+	hold_acknowledge,
+	dma_acknowledge,
+	address_enable,
+	address_strobe,
+	output_highst_address,
+	memory_read_n,
+	memory_write_n,
+	io_read_n_out,
+	io_read_n_io,
+	io_write_n_out,
+	io_write_n_io,
+	ready,
+	end_of_process_n_in,
+	end_of_process_n_out
+);
+	reg _sv2v_0;
+	input wire clock;
+	input wire cpu_clock_posedge;
+	input wire cpu_clock_negedge;
+	input wire reset;
+	input wire [7:0] internal_data_bus;
+	input wire write_command_register;
+	input wire write_mode_register;
+	input wire read_status_register;
+	input wire master_clear;
+	output reg [1:0] dma_rotate;
+	output wire [3:0] edge_request;
+	input wire [3:0] dma_request_state;
+	input wire [3:0] encoded_dma;
+	output reg [3:0] dma_acknowledge_internal;
+	output reg [3:0] transfer_register_select;
+	output reg initialize_current_register;
+	output reg address_hold_config;
+	output reg decrement_address_config;
+	output reg next_word;
+	input wire update_high_address;
+	input wire underflow;
+	output reg end_of_process_internal;
+	output reg lock_bus_control;
+	output wire output_temporary_data;
+	output wire [7:0] temporary_register;
+	output reg [3:0] terminal_count_state;
+	output reg hold_request;
+	input wire hold_acknowledge;
+	output wire [3:0] dma_acknowledge;
+	output reg address_enable;
+	output reg address_strobe;
+	output reg output_highst_address;
+	output reg memory_read_n;
+	output reg memory_write_n;
+	output reg io_read_n_out;
+	output reg io_read_n_io;
+	output reg io_write_n_out;
+	output reg io_write_n_io;
+	input wire ready;
+	input wire end_of_process_n_in;
+	output wire end_of_process_n_out;
 	reg [31:0] state;
 	reg [31:0] next_state;
+	reg next_s4;
 	reg [7:0] bit_select = 8'b00011011;
 	reg memory_to_memory_enable;
 	reg chanel_0_address_hold_enable;
@@ -59,7 +103,6 @@ module KF8237_Timing_And_Control (
 	wire [1:0] dma_select;
 	reg [3:0] dma_acknowledge_ff;
 	reg terminal_count;
-	reg terminal_count_internal;
 	reg reoutput_high_address;
 	reg external_end_of_process;
 	reg prev_read_status_register;
@@ -92,9 +135,10 @@ module KF8237_Timing_And_Control (
 			extended_write_selection <= extended_write_selection;
 			dack_sense_active_high <= dack_sense_active_high;
 		end
-	genvar mode_reg_bit_i;
+	genvar _gv_mode_reg_bit_i_1;
 	generate
-		for (mode_reg_bit_i = 0; mode_reg_bit_i < 4; mode_reg_bit_i = mode_reg_bit_i + 1) begin : MODE_REGISTERS
+		for (_gv_mode_reg_bit_i_1 = 0; _gv_mode_reg_bit_i_1 < 4; _gv_mode_reg_bit_i_1 = _gv_mode_reg_bit_i_1 + 1) begin : MODE_REGISTERS
+			localparam mode_reg_bit_i = _gv_mode_reg_bit_i_1;
 			always @(posedge clock or posedge reset)
 				if (reset) begin
 					transfer_type[mode_reg_bit_i] <= 2'b00;
@@ -124,7 +168,10 @@ module KF8237_Timing_And_Control (
 		end
 	endgenerate
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		next_state = state;
+		next_s4 = 1'b0;
 		casez (state)
 			32'd0:
 				if (0 != encoded_dma)
@@ -133,25 +180,35 @@ module KF8237_Timing_And_Control (
 				if (hold_acknowledge)
 					next_state = 32'd2;
 			32'd2:
-				if (transfer_mode[dma_select] == 2'b11)
+				if (transfer_mode[dma_select] == 2'b11) begin
 					next_state = 32'd6;
+					next_s4 = 1'b1;
+				end
 				else
 					next_state = 32'd3;
 			32'd3:
 				if (~compressed_timing)
 					next_state = 32'd4;
-				else if (ready || (transfer_type[dma_select] == 2'b00))
-					next_state = 32'd6;
+				else if (transfer_type[dma_select] == 2'b00) begin
+					if (ready)
+						next_state = 32'd6;
+					next_s4 = 1'b1;
+				end
 				else
 					next_state = 32'd5;
 			32'd4:
-				if (ready || (transfer_type[dma_select] == 2'b00))
-					next_state = 32'd6;
+				if (transfer_type[dma_select] == 2'b00) begin
+					if (ready)
+						next_state = 32'd6;
+					next_s4 = 1'b1;
+				end
 				else
 					next_state = 32'd5;
-			32'd5:
+			32'd5: begin
 				if (ready)
 					next_state = 32'd6;
+				next_s4 = 1'b1;
+			end
 			32'd6:
 				if (transfer_mode[dma_select] == 2'b11) begin
 					if (0 == (dma_acknowledge_internal & dma_request_state))
@@ -213,6 +270,8 @@ module KF8237_Timing_And_Control (
 		else
 			dma_rotate <= dma_rotate;
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		address_hold_config = (4'b0001 == dma_acknowledge_internal) & chanel_0_address_hold_enable;
 		decrement_address_config = address_decrement_select[dma_select];
 		next_word = ((next_state == 32'd6) && (transfer_mode[dma_select] != 2'b11) ? 1'b1 : 1'b0);
@@ -225,7 +284,7 @@ module KF8237_Timing_And_Control (
 			32'd1: begin
 				transfer_register_select = dma_acknowledge_internal;
 				initialize_current_register = 0;
-				lock_bus_control = 1'b1;
+				lock_bus_control = 1'b0;
 			end
 			32'd2: begin
 				transfer_register_select = dma_acknowledge_internal;
@@ -444,43 +503,27 @@ module KF8237_Timing_And_Control (
 			reoutput_high_address <= 1'b0;
 		else if (master_clear)
 			reoutput_high_address <= 1'b0;
-		else if (cpu_clock_posedge) begin
-			if (state == 32'd3)
-				reoutput_high_address <= 1'b0;
-			else if (next_word)
-				reoutput_high_address <= update_high_address;
-			else
-				reoutput_high_address <= reoutput_high_address;
-		end
+		else if (state == 32'd3)
+			reoutput_high_address <= 1'b0;
+		else if (cpu_clock_negedge && next_word)
+			reoutput_high_address <= update_high_address;
 		else
 			reoutput_high_address <= reoutput_high_address;
 	always @(posedge clock or posedge reset)
-		if (reset) begin
+		if (reset)
 			terminal_count <= 1'b0;
-			terminal_count_internal <= 1'b0;
-		end
-		else if (master_clear) begin
+		else if (master_clear)
 			terminal_count <= 1'b0;
-			terminal_count_internal <= 1'b0;
-		end
 		else if (cpu_clock_posedge) begin
-			if (state == 32'd6) begin
+			if (state == 32'd6)
 				terminal_count <= 1'b0;
-				terminal_count_internal <= 1'b0;
-			end
-			else if (next_word) begin
+			else if (next_s4)
 				terminal_count <= underflow;
-				terminal_count_internal <= underflow;
-			end
-			else begin
-				terminal_count <= 1'b0;
-				terminal_count_internal <= terminal_count_internal;
-			end
+			else
+				terminal_count <= terminal_count;
 		end
-		else begin
+		else
 			terminal_count <= terminal_count;
-			terminal_count_internal <= terminal_count_internal;
-		end
 	assign end_of_process_n_out = ~terminal_count;
 	always @(posedge clock or posedge reset)
 		if (reset)
@@ -504,7 +547,7 @@ module KF8237_Timing_And_Control (
 			end_of_process_internal <= 1'b0;
 		else if (cpu_clock_negedge) begin
 			if (next_state == 32'd6)
-				end_of_process_internal <= terminal_count_internal | external_end_of_process;
+				end_of_process_internal <= terminal_count | external_end_of_process;
 			else
 				end_of_process_internal <= 1'b0;
 		end
@@ -532,4 +575,5 @@ module KF8237_Timing_And_Control (
 		end
 		else
 			terminal_count_state <= terminal_count_state;
+	initial _sv2v_0 = 0;
 endmodule
