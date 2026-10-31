@@ -85,6 +85,12 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 Новый MCL86 (2026-10-31, сборка Mini G 26103109): `src/rtl/cpu` — sv2v MiSTer `3238779` (Boogermann / opengateware), `run_cpu_sim.sh` 0 ошибок, тайминг выполнен, 90 % slices. Решения пользователя 2026-10-31: CMS, композит, HGC, Tandy — не нужны; RTC (порт 2C0h, часы MCU) и выход MIDI (MPU-401 на синтезатор платы) — сделаны; постоянный HDMI-растр — под вопросом.
 
+### ROM и HDMI-фрейм-буфер (2026-10-31, ветка `roms-hdmi`)
+
+- ROM: Sergey XT BIOS 1.0.2 (2026-03-27, сборка `MACHINE_XT` без `DEBUG`, как у MiSTer), XTIDE r638 (2026-06-09, `SW/ROMs/make_xtide_rom.py`; у slave снят флаг «не искать»). Загрузчик ROM из `.kg`: `make <board>-core` только переупаковывает.
+- HDMI: фрейм-буфер в SDRAM (`src/rtl/fb`): захват CGA до скандаблера в окно 720 × 240 по синхроимпульсам, три кадра, постоянный растр 910 × 525; пункт OSD «HDMI: Direct / Frame buffer» на Mini / Mini G. `sim/run_fb_sim.sh`.
+- Mini G 26103111 на железе (2026-10-31): всё работает, картинка на месте, все видеорежимы Area 5150 показываются и стоят на месте. BIOS 1.0.2, XTIDE r638 и HDD1 тоже проверены (пользователь: «все работает»).
+
 ### Cleanup (2026-10-31, по просьбе пользователя)
 
 Удалены таргеты и бинарники других плат (ZXUno, ZXDos, NGo, UnoXT, ZXDos+), неиспользуемые файлы `HW/`, их `ifdef`. Структура: `ise/XC6SLX25/karabas-go` → `src/`, `HW/` → `src/rtl/` (`cpu`, `chipset` без уровней `HDL/`, `video`, `uart`, `sound`, `common`), `rtl/mcu` → `rtl/mouse`. Сборка из `src/` дала тот же `pcxt.kg3` байт в байт. Пути `HW/…` и `ise/XC6SLX25/karabas-go/…` в разделах выше — старая раскладка. Новый CPU проверен на Mini G 26103109 (DOS, игры, турбо, горячий сброс; в Area 5150 заметных отличий нет), старый удалён.
