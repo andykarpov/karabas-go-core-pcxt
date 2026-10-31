@@ -215,7 +215,10 @@ module KF8288 (
 			read_command_tmp <= read_command_tmp;
 	assign write_data_enable = write_command_tmp & ~machine_cycle_period;
 	assign read_data_enable = read_command_tmp & ~read_and_advanced_write_command_n;
-	assign data_enable = (direction_transmit_or_receive_n ? write_data_enable : read_data_enable);
+	// karabas: MiSTer 4f8cd84 "Fix 8288": DEN off while the DMA has the bus. The CPU waits in its next
+	// cycle then; in a write cycle (a push) Bus_Arbiter put its data on the internal bus, so a DMA
+	// read of the memory (a floppy write) took the CPU's bytes and a DMA write could store them
+	assign data_enable = command_enable & (direction_transmit_or_receive_n ? write_data_enable : read_data_enable);
 	assign master_cascade_enable = (machine_cycle == 3'b000) & ~is_passive_status;
 	assign peripheral_data_enable_n = ~data_enable;
 	assign address_latch_enable = machine_cycle_period & ~is_passive_status;
