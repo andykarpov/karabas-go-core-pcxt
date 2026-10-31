@@ -41,21 +41,10 @@ module PERIPHERALS (
 	input		wire	[7:0]			port_c_in,
 	output	wire	[7:0]			port_c_out,
 	output	wire	[7:0]			port_c_io,
-`ifdef EMULATE_PS2
 	input		wire	[7:0]			kb_scancode,
 	input		wire					kb_scancode_upd,	
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
-`else
-	input		wire					ps2_clock,
-	input		wire					ps2_data,
-	output	reg					ps2_clock_out,
-	output	wire					ps2_data_out,
-   input    wire              ps2_mouseclk_in,
-   input    wire              ps2_mousedat_in,
-   output   wire              ps2_mouseclk_out,
-   output   wire              ps2_mousedat_out,
-`endif
 //	input		wire	[4:0]			joy_opts,
 //	input		wire	[31:0]		joy0,
 //	input		wire	[31:0]		joy1,
@@ -81,26 +70,15 @@ module PERIPHERALS (
 	input		wire	[1:0]			ems_address,
 	output	wire					cga_vram_rdy,
 
-`ifdef PHYSICAL_IDE
 	output   wire  [1:0]       ide_cs_n,
 	output   wire              ide_rd_n,
 	output   wire              ide_wr_n,
 	output   wire  [2:0]       ide_a,
-`ifdef KARABASGO
 	// karabas: the IDE data bus split, so that the board can put the CF card and the image
 	// disks (hdf_ata) on it without a tristate bus inside the FPGA
 	output   wire  [15:0]      ide_dout,
 	input    wire  [15:0]      ide_din,
-`else
-	inout    wire  [15:0]      ide_d,
-`endif
 	output   wire              ide_reset_n,
-`else
-   output   wire              spi_clk,
-   output   wire              spi_cs,
-   output   wire              spi_mosi,
-   input    wire              spi_miso,
-`endif
 
 `ifdef FLOPPY
 	// karabas: the floppy controller of MiSTer PCXT (floppy.v), its disks through the management
@@ -129,12 +107,10 @@ module PERIPHERALS (
 	// karabas: MIDI OUT of an MPU-401 in UART mode at ports 330h / 331h (mpu401_tx)
 	output   wire              midi_tx,
 `endif
-`ifdef ROM_LOADER
 	// karabas: the rom loader of the mcu (in the clock of the chipset)
 	input    wire              rom_wr,
 	input    wire  [14:0]      rom_addr,
 	input    wire  [7:0]       rom_data,
-`endif
 	output   reg  [7:0]        xtctl = 8'h00,
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
@@ -167,11 +143,7 @@ module PERIPHERALS (
 	wire turbo_mode;
    wire swap_video;
 
-`ifdef MEM_512KB
-	assign cga_vram_rdy = 1'b1;
-`else
 	assign cga_vram_rdy = ~(CGA_VRAM_ENABLE | CGA_VRAM_ENABLE_ff | CGA_VRAM_ENABLE_ff_2 | CGA_VRAM_ENABLE_ff_3);
-`endif
 
 	always @(*)
 		if ((~address_enable_n & ~address[9]) & ~address[8])
@@ -201,21 +173,14 @@ module PERIPHERALS (
 	wire ide0_chip_select_n      = ~(iorq && ~address_enable_n && ({address[15:4], 4'd0} == 16'h0300));
 	wire lpt_cs = (iorq && ~address_enable_n) && (address[15:0] == 16'h0378);
 	wire xtide_select_n = ~((~iorq && ~address_enable_n) && (address[19:14] == 6'b111011));
-`ifdef BIOS_16KB
 	// karabas: a 16 KB BIOS at FC000-FFFFF (Sergey Kiselev's XT BIOS of MiSTer PCXT)
 	wire bios_8kb_select_n = ~((~iorq && ~address_enable_n) && (address[19:14] == 6'b111111));
-`else
-	wire bios_8kb_select_n = ~((~iorq && ~address_enable_n) && (address[19:13] == 7'b1111111));
-`endif
 	wire tandy_chip_select_n = ~((iorq && ~address_enable_n) && (address[15:3] == (16'h00c0 >> 3)));
 `ifdef FLOPPY
 	wire floppy0_chip_select_n = ~(~address_enable_n && (({address[15:2], 2'd0} == 16'h03F0) || ({address[15:1], 1'd0} == 16'h03F4) || ({address[15:0]} == 16'h03F7)));
 `endif
 	// wire xtctl_chip_select = (iorq && ~address_enable_n && address[15:0] == 16'h8888);
 
-`ifdef MEM_512KB
-	wire ram_select_n = ~(~iorq && ~address_enable_n && ~address[19]);
-`else
 `ifdef FLOPPY
 	// karabas: the memory cycles of the floppy DMA reach the RAM too (MiSTer: RAM.sv decodes
 	// the address alone; here the RAM needed the bus of the CPU)
@@ -263,7 +228,6 @@ module PERIPHERALS (
 			map_ems[(3 - ems_access_address) * 6+:6] <= write_map_ems_data;
 			ena_ems[ems_access_address] <= write_map_ena_data;
 		end
-`endif
 
 	wire timer_interrupt;
 	reg keybord_interrupt;
@@ -390,7 +354,6 @@ module PERIPHERALS (
 		else
 			prev_ps2_reset_n <= ps2_reset_n;
 
-`ifdef EMULATE_PS2
 	KFPS2KB_direct u_KFPS2KB(
 		.clock(clock),
 		.reset(reset),
@@ -401,35 +364,6 @@ module PERIPHERALS (
 		.keycode(keycode_buf),
 		.clear_keycode(clear_keycode)
 	);
-`else
-	KFPS2KB_direct u_KFPS2KB(
-		.clock(clock),
-		.peripheral_clock(peripheral_clock),
-		.reset(reset),
-		.device_clock(ps2_clock | lock_recv_clock),
-		.reset_keybord(~prev_ps2_reset_n & ps2_reset_n),
-		.device_data(ps2_data),
-		.irq(keybord_irq),
-		.keycode(keycode_buf),
-		.clear_keycode(clear_keycode),
-		.swap_video(swap_video),
-		.turbo_mode(turbo_mode),		
-		.initial_video(VIDEO_OPTION),
-		.initial_turbo(TURBO_MODE)
-		
-	);
-	KFPS2KB_Send_Data u_KFPS2KB_Send_Data(
-		.clock(clock),
-		.peripheral_clock(peripheral_clock),
-		.reset(reset),
-		.device_clock(ps2_clock),
-		.device_clock_out(ps2_send_clock),
-		.device_data_out(ps2_data_out),
-		.sending_data_flag(lock_recv_clock),
-		.send_request(1'b0),
-		.send_data(8'hff)
-	);
-`endif
 
 	// MiSTer 7a9c8b1: 80h while the BIOS holds the keyboard in reset (port B bit 6), no slow keyboard
 	// after a warm boot
@@ -467,7 +401,6 @@ module PERIPHERALS (
 		end
 `endif
 
-`ifndef MEM_512KB
 	Tandy_Scancode_Converter u_Tandy_Scancode_Converter(
 		.clock(clock),
 		.reset(reset),
@@ -475,15 +408,7 @@ module PERIPHERALS (
 		.keybord_irq(keybord_irq),
 		.convert_data(tandy_keycode)
 	);
-`endif
 
-`ifndef EMULATE_PS2
-	always @(posedge clock or posedge reset)
-		if (reset)
-			ps2_clock_out = 1'b1;
-		else
-			ps2_clock_out = ~((keybord_irq | ~ps2_send_clock) | ~ps2_reset_n);
-`endif
 	
 `ifdef SOUND_ADLIB
 	wire [7:0] jtopl2_dout;
@@ -614,12 +539,10 @@ module PERIPHERALS (
 //      if ((xtctl_chip_select) && (~io_write_n))
 //         xtctl <= internal_data_bus;
 
-`ifndef MEM_512KB
 		if (tandy_page_cs && ~io_write_n)		
 			tandy_page_data <= internal_data_bus;
 		if (~nmi_mask_register_n && ~io_write_n)
 			nmi_mask_register_data <= internal_data_bus;
-`endif
 	end
 	 
 `ifdef MOUSE_COM1
@@ -645,21 +568,8 @@ module PERIPHERALS (
 		.irq(uart_interrupt)
 	);
 
-`ifdef EMULATE_PS2
 	assign uart_tx = serial_mouse_tx;
 	assign serial_mouse_rts = ~rts_n;
-`else	
-    MSMouseWrapper MSMouseWrapper_inst 
-    (
-        .clk(clock),
-        .ps2dta_in(ps2_mousedat_in),
-        .ps2clk_in(ps2_mouseclk_in),
-        .ps2dta_out(ps2_mousedat_out),
-        .ps2clk_out(ps2_mouseclk_out),
-        .rts(~rts_n),
-        .rd(uart_tx)
-    );
-`endif
 `endif
 	
 	always @(posedge clock)
@@ -710,9 +620,6 @@ module PERIPHERALS (
 		video_address_enable_n <= address_enable_n;
 	end
 
-`ifdef MEM_512KB
-	wire [7:0] cga_vram_cpu_dout; 
-`else
 	reg [7:0] cga_vram_cpu_dout;
 	reg CGA_VRAM_ENABLE_ff;
 	reg CGA_VRAM_ENABLE_ff_2;
@@ -726,7 +633,6 @@ module PERIPHERALS (
 		cga_crtc_ff <= cga_crtc;
 		tandy_crtc_ff <= tandy_crtc;
 	end
-`endif
 
 	always @(posedge clk_vga_cga) begin
 		cga_io_address_1 <= video_io_address;
@@ -741,9 +647,7 @@ module PERIPHERALS (
 		cga_io_read_n_3 <= cga_io_read_n_2;
 		cga_address_enable_n_1 <= video_address_enable_n;
 		cga_address_enable_n_2 <= cga_address_enable_n_1;		
-`ifndef MEM_512KB
 		cga_vram_cpu_dout <= SRAM_DATA;
-`endif
 
 	end
 	wire [3:0] video_cga;
@@ -778,19 +682,11 @@ module PERIPHERALS (
 	cga cga1(
 		.clk(clk_vga_cga),
 
-`ifdef MEM_512KB
-		.bus_a(cga_io_address_1),
-		.bus_ior_l(cga_io_read_n_2),
-		.bus_iow_l(cga_io_write_n_2),
-		.bus_aen(cga_address_enable_n_1),
-		.vram_din(CGA_VRAM_DOUT),
-`else
 		.bus_a(cga_io_address_2),
 		.bus_ior_l(cga_io_read_n_3),
 		.bus_iow_l(cga_io_write_n_3),
 		.bus_aen(cga_address_enable_n_2),
 		.vram_din((splashscreen ? CGA_VRAM_DOUT : cga_vram_cpu_dout)),
-`endif
 
 		.bus_memr_l(1'd0),
 		.bus_memw_l(1'd0),
@@ -815,34 +711,9 @@ module PERIPHERALS (
 		.isa_op_enable(isa_op_enable)
 	);
 	
-`ifdef PHISICAL_BUTTONS
 
-	button_status turbo_status (
-		.clk(clock),
-		.reset(reset),
-		.button(~btn_yellow_n_i),
-		.status(turbo),
-		.initial_status(TURBO_MODE)
-	);
-	
-	button_status scandoubler_status (
-		.clk(clock),
-		.reset(reset),
-		.button(~btn_green_n_i),
-		.status(scandoubler),
-		.initial_status(VIDEO_OPTION)
-	);
-	
-`else
-
-`ifdef VIRTUAL_BUTTONS
 	assign scandoubler = ~btn_green_n_i;
 	assign turbo = ~btn_yellow_n_i;
-`else
-	assign scandoubler = swap_video;
-	assign turbo = turbo_mode;
-`endif
-`endif
 
 	always @(posedge clock) begin
 		CGA_CRTC_OE_1 <= CGA_CRTC_OE;
@@ -859,7 +730,6 @@ module PERIPHERALS (
 	reg bios_loaded = 1'b0;
 	reg bios_loading = 1'b0;
 
-`ifndef MEM_512KB
 	wire [20:0] SRAM_ADDR_A;
 	reg [20:0] latch_address;	
 	always @(*)
@@ -877,7 +747,6 @@ module PERIPHERALS (
 	wire [20:0] tandy_processor = {1'b0, nmi_mask_register_data[3:1], tandy_page_data[5:4], (tandy_page_data[3] ? tandy_page_data[3] : latch_address[14]), latch_address[13:0]};
 	wire [20:0] tandy_crtc = {1'b0, nmi_mask_register_data[3:1], tandy_page_data[2:1], (tandy_page_data[0] ? tandy_page_data[0] : CGA_VRAM_ADDR[14]), CGA_VRAM_ADDR[13:0]};
 	wire [19:0] cga_crtc = {6'b10111, CGA_VRAM_ADDR[14:0]};
-`endif
 
 	defparam cga1.BLINK_MAX = 24'd4772727;
 	wire [7:0] bios_cpu_dout;
@@ -891,40 +760,26 @@ module PERIPHERALS (
 		.dina(internal_data_bus),
 		.douta(ram_cpu_dout),
 
-`ifdef MEM_512KB
-		.ena(~ram_select_n),
-		.addra(address[18:0]),
-		.SRAM_ADDR(SRAM_ADDR),
-		.SRAM_WE_n(SRAM_WE_n),
-`else
 		.ena(~ram_select_n || ~cga_chip_select_n || ~bios_select_n),
 		.addra(((tandy_16_gfx && ~cga_chip_select_n) && ~latch_address[20] ? tandy_processor : latch_address)),
 		.SRAM_ADDR(SRAM_ADDR_A),
 		.SRAM_WE_n(SRAM_WE_n_A),
-`endif
 
 		.SRAM_DATA_i(SRAM_DATA),
 		.SRAM_DATA_o(SRAM_DATA_A_o)
 	);
 
-`ifndef MEM_512KB
 	assign SRAM_WE_n = (CGA_VRAM_ENABLE_ff ? 1'b1 : SRAM_WE_n_A);
 	assign SRAM_ADDR = (CGA_VRAM_ENABLE_ff ? (tandy_16_gfx ? tandy_crtc_ff : cga_crtc_ff) : SRAM_ADDR_A);
-`endif
 
 	assign SRAM_DATA = (~SRAM_WE_n ? SRAM_DATA_A_o : 8'hzz);
 	
-`ifdef ROM_LOADER
 	// karabas: the BIOS (16 KB, FC000-FFFFF) and the XTIDE BIOS (EC000-EFFFF) also written by the
 	// rom loader of the mcu (the roms of core*.json; the PC is in reset meanwhile): rom address
 	// 0000-3FFF the BIOS, 4000-7FFF the XTIDE BIOS. The .hex files stay as their first contents.
 	wire rom_bios_we = rom_wr && ~rom_addr[14];
 	wire rom_xtide_we = rom_wr && rom_addr[14];
-`ifdef BIOS_WRITABLE
-	wire bios_cpu_we = ~memory_write_n;
-`else
 	wire bios_cpu_we = 1'b0;
-`endif
 
 	bram #(.AW(14), .filename(`ROM_BIOS)) bios
 	(
@@ -946,68 +801,7 @@ module PERIPHERALS (
 		.dina(rom_xtide_we ? rom_data : internal_data_bus),
 		.douta(xtide_cpu_dout)
 	);
-`else
-`ifdef BIOS_16KB
-	bram #(.AW(14), .filename(`ROM_BIOS)) bios
-`else
-	bram #(.AW(13), .filename(`ROM_BIOS)) bios
-`endif
-	(
-		.clka(clock),
-		.ena(~bios_8kb_select_n),
-		.douta(bios_cpu_dout),
 
-`ifdef BIOS_WRITABLE
-		.wea(~memory_write_n),
-`endif
-
-`ifdef BIOS_16KB
-		.addra(address[13:0]),
-`else
-		.addra(address[12:0]),
-`endif
-		.dina(internal_data_bus),
-		.istandy(tandy_video)
-	);
-	
-	bram #(.AW(14), .filename(`XTIDE_BIOS)) xtide
-	(
-		.clka(clock),
-		.ena(~xtide_select_n),
-
-`ifdef BIOS_WRITABLE
-		.wea(~memory_write_n),
-`endif
-
-		.addra(address[13:0]),
-		.dina(internal_data_bus),		
-		.douta(xtide_cpu_dout)
-	);
-`endif
-
-`ifdef MEM_512KB
-	`ifdef SPLASH_ENABLE
-		bram_dualport #(.AW(14), .filename(`SPLASH_SCR)) splash
-	`else
-		bram_dualport #(.AW(14)) splash
-	`endif
-	
-		(
-			.clka(clk_vga_cga),
-			.wea(1'b0),
-			.ena(CGA_VRAM_ENABLE),
-			.addra(CGA_VRAM_ADDR[13:0]),
-			.dina(8'h00),
-			.douta(CGA_VRAM_DOUT),
-			.clkb(clock),
-			.enb(~cga_chip_select_n),
-			.web(~memory_write_n),
-			.addrb(address[13:0]),
-			.dinb(internal_data_bus),
-			.doutb(cga_vram_cpu_dout)
-		);
-
-`else
 	`ifdef SPLASH_ENABLE
 		bram #(.AW(12), .filename(`SPLASH_SCR)) splash			
 			(
@@ -1020,7 +814,6 @@ module PERIPHERALS (
 			);
 			
 	`endif
-`endif
 
     //
     // XT2IDE
@@ -1062,53 +855,14 @@ module PERIPHERALS (
 	 // XTIDE-CF
 	 // 
 	 
-`ifdef PHYSICAL_IDE
 	
 	assign ide_cs_n = {ide0_cs3fx, ide0_cs1fx};
 	assign ide_rd_n = ide0_io_read_n;
 	assign ide_wr_n = ide0_io_write_n;
 	assign ide_a = ide0_address;
-`ifdef KARABASGO
 	assign ide_dout = ide0_data_bus_out;
 	assign ide0_data_bus_in = ide_din;
-`else
-	assign ide_d = (~ide0_io_write_n) ? ide0_data_bus_out : 16'hZZ;
-	assign ide0_data_bus_in = ide_d;
-`endif
 	assign ide_reset_n = ~reset;
-`else	 
-    //
-    // XTIDE-MMC
-    //
-	 wire [15:0]    mmcide_readdata;
-
-    KFMMC_DRIVE_IDE #(
-        .init_spi_clock_cycle               (8'd150),
-        .normal_spi_clock_cycle             (8'd002)
-    ) u_KFMMC_DRIVE_IDE (
-        .clock              (clock),
-        .reset              (reset),
-
-        .ide_cs1fx_n        (ide0_cs1fx),
-        .ide_cs3fx_n        (ide0_cs3fx),
-        .ide_io_read_n      (ide0_io_read_n),
-        .ide_io_write_n     (ide0_io_write_n),
-
-        .ide_address        (ide0_address),
-        .ide_data_bus_in    (ide0_data_bus_out),
-        .ide_data_bus_out   (mmcide_readdata),
-
-        .device_master      (1'b1),     // set primary drive
-
-        .spi_clk            (spi_clk),
-        .spi_cs             (spi_cs),
-        .spi_mosi           (spi_mosi),
-        .spi_miso           (spi_miso)
-
-    );
-
-    assign ide0_data_bus_in = mmcide_readdata;
-`endif	 
 
 `ifdef FLOPPY
 	//
@@ -1256,12 +1010,6 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= bios_cpu_dout;
 		end
-`ifdef MEM_512KB
-		else if (~ram_select_n && ~memory_read_n) begin
-			data_bus_out_from_chipset <= 1'b1;
-			data_bus_out <= ram_cpu_dout;
-		end
-`else
 		else if ((~ram_select_n || ~bios_select_n) && ~memory_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= ram_cpu_dout;
@@ -1274,7 +1022,6 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= nmi_mask_register_data;
 		end
-`endif
 
 		else if (~cga_chip_select_n && ~memory_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;

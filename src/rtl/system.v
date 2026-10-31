@@ -19,60 +19,33 @@ module system(
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
 
-`ifdef EMULATE_PS2
 	input		wire [7:0]			kb_scancode,
 	input		wire					kb_scancode_upd,
 	input    wire              serial_mouse_tx,
 	output   wire              serial_mouse_rts,	
-`else
-	inout		wire					clkps2,
-	inout		wire					dataps2,
-	inout    wire              mouseclk,
-	inout    wire              mousedata,
-`endif
 
-`ifdef AUDIO_DAC
 	output   wire [15:0]       AUD_L,
 	output   wire [15:0]       AUD_R,
-`else
-	output	wire					AUD_L,
-	output	wire					AUD_R,
-`endif
 
-`ifdef PHYSICAL_IDE
 	output   wire  [1:0]       ide_cs_n,
 	output   wire              ide_rd_n,
 	output   wire              ide_wr_n,
 	output   wire  [2:0]       ide_a,
-`ifdef KARABASGO
 	// karabas: the IDE data bus split, so that the board can put the CF card and the image
 	// disks (hdf_ata) on it without a tristate bus inside the FPGA
 	output   wire  [15:0]      ide_dout,
 	input    wire  [15:0]      ide_din,
-`else
-	inout    wire  [15:0]      ide_d,
-`endif
 	output   wire              ide_reset_n,
-`else
-	output 	wire					SD_nCS,
-	output	wire					SD_DI,
-	output	wire					SD_CK,
-	input		wire					SD_DO,
-`endif
 
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
-`ifdef KARABASGO
 	// karabas: a reset of the whole PC (the OSD Reset item, PLL not locked), as at the end of the
-	// splash screen; the other boards have no such input
+	// splash screen
 	,input		wire					reset_in
-`endif
-`ifdef ROM_LOADER
 	// karabas: the rom loader of the mcu (BIOS / XTIDE BIOS, in clk_chipset)
 	,input    wire              rom_wr
 	,input    wire  [14:0]      rom_addr
 	,input    wire  [7:0]       rom_data
-`endif
 `ifdef FLOPPY
 	// karabas: the management bus of the floppy controller (floppy.v): the disks of drives A, B
 	,input    wire  [3:0]       fdd_mgmt_address
@@ -144,7 +117,6 @@ clk_div3 clk_normal // 4.77MHz
 always @(posedge clk_4_77)
 	peripheral_clock <= ~peripheral_clock; // 2.385Mhz
 	
-`ifdef EMULATE_PS2
 //assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
 //assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
 
@@ -152,19 +124,6 @@ always @(posedge clk_4_77)
 //	ps2_clock_in <= clkps2;
 //	ps2_data_in <= dataps2;
 //end
-`else
-assign clkps2 = (ps2_clock_out == 1'b0) ? 1'b0 : 1'bZ;
-assign dataps2 = (ps2_data_out == 1'b0) ? 1'b0 : 1'bZ;
-assign mouseclk = (ps2_mouseclk_out == 1'b0) ? 1'b0 : 1'bZ;
-assign mousedata = (ps2_mousedat_out == 1'b0) ? 1'b0 : 1'bZ;
-
-always @(posedge peripheral_clock) begin
-	ps2_clock_in <= clkps2;
-	ps2_data_in <= dataps2;
-	ps2_mouseclk_in <= mouseclk;
-	ps2_mousedat_in <= mousedata;
-end
-`endif
 	
 wire  biu_done;
 reg  turbo_mode;
@@ -216,11 +175,7 @@ always @(posedge clk_chipset) begin
     cen_opl2 <= clk_opl2_ff_2 & ~clk_opl2_ff_3;
 end
 
-`ifdef KARABASGO
 wire reset_wire = splashscreen | reset_in;
-`else
-wire reset_wire = splashscreen;
-`endif
 
 //////////////////////////////////////////////////////////////////
 
@@ -352,13 +307,8 @@ reg splash_status = 1'b0;
 		sndval <= sndval - sndval[31:7] + (sndsign << 25);
 	end
 
-`ifdef AUDIO_DAC
 	assign AUD_L = sndmix[15:0];
 	assign AUD_R = sndmix[15:0];
-`else
-	assign AUD_L = sndsign;
-	assign AUD_R = sndsign;
-`endif		
 		
 	wire HBlank, VBlank;
 		
@@ -416,21 +366,10 @@ reg splash_status = 1'b0;
 		  .port_c_in                          (port_c_in),
 		  .port_b_in                          (port_b_out),
 	     .speaker_out                        (speaker_out), 
-`ifdef EMULATE_PS2
 		  .kb_scancode                        (kb_scancode),
 	     .kb_scancode_upd                    (kb_scancode_upd),
 		  .serial_mouse_tx                    (serial_mouse_tx),
 		  .serial_mouse_rts                   (serial_mouse_rts),
-`else		  
-		  .ps2_clock                          (ps2_clock_in),
-	     .ps2_data                           (ps2_data_in),
-	     .ps2_clock_out                      (ps2_clock_out),
-	     .ps2_data_out                       (ps2_data_out),
-        .ps2_mouseclk_in                    (ps2_mouseclk_in),
-        .ps2_mousedat_in                    (ps2_mousedat_in),
-        .ps2_mouseclk_out                   (ps2_mouseclk_out),
-        .ps2_mousedat_out                   (ps2_mousedat_out),
-`endif
 //		  .joy_opts                           (joy_opts),                          //Joy0-Disabled, Joy0-Type, Joy1-Disabled, Joy1-Type, turbo_sync
 //      .joy0                               (status[28] ? joy1 : joy0),
 //      .joy1                               (status[28] ? joy0 : joy1),
@@ -449,30 +388,17 @@ reg splash_status = 1'b0;
 //		  .ioctl_addr                         (ioctl_addr),
 //		  .ioctl_data                         (ioctl_data),
 
-`ifdef PHYSICAL_IDE
 		.ide_cs_n                             (ide_cs_n),
 		.ide_rd_n                             (ide_rd_n),
 		.ide_wr_n                             (ide_wr_n),
 		.ide_a                                (ide_a),
-`ifdef KARABASGO
 		.ide_dout(ide_dout),
 		.ide_din(ide_din),
-`else
-		.ide_d(ide_d),
-`endif
 		.ide_reset_n                          (ide_reset_n),		
-`else
-		.spi_clk                              (SD_CK),
-		.spi_cs                               (SD_nCS),
-		.spi_mosi                             (SD_DI),
-		.spi_miso                             (SD_DO),
-`endif
 		  
-`ifdef ROM_LOADER
 		.rom_wr(rom_wr),
 		.rom_addr(rom_addr),
 		.rom_data(rom_data),
-`endif
 `ifdef FLOPPY
 		.fdd_mgmt_address(fdd_mgmt_address),
 		.fdd_mgmt_fddn(fdd_mgmt_fddn),

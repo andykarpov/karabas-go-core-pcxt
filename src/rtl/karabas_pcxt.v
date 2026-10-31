@@ -124,7 +124,6 @@ system sys_inst
 	.AUD_L(aud_l),
 	.AUD_R(aud_r),
 
-`ifdef PHYSICAL_IDE
 	.ide_cs_n(sys_ide_cs_n),
 	.ide_rd_n(sys_ide_rd_n),
 	.ide_wr_n(sys_ide_wr_n),
@@ -132,18 +131,13 @@ system sys_inst
 	.ide_dout(sys_ide_dout),
 	.ide_din(sys_ide_din),
 	.ide_reset_n(sys_ide_reset_n),
-`endif
 	.btn_green_n_i(~kb_swap_video),
 	.btn_yellow_n_i(~kb_turbo_mode),
-`ifdef ROM_LOADER
 	// the PC waits in reset while the mcu loads the BIOS / XTIDE BIOS (roms of core*.json)
 	.reset_in(kb_reset | areset | romload_active)
 	,.rom_wr(romload_wr && romload_addr[31:15] == 17'd0)
 	,.rom_addr(romload_addr[14:0])
 	,.rom_data(romload_data)
-`else
-	.reset_in(kb_reset | areset)
-`endif
 `ifdef FLOPPY
 	,.fdd_mgmt_address(fdd_mgmt_address)
 	,.fdd_mgmt_fddn(fdd_mgmt_fddn)
@@ -178,18 +172,9 @@ assign rtc_cs = 1'b0;
 assign rtc_wr_n = 1'b1;
 `endif
 
-`ifdef PHYSICAL_IDE
 	assign sd_cs_n = 1'b1;
 	assign sd_di = 1'b1;
 	assign sd_clk = 1'b0;
-`else
-	assign ide_cs_n = 2'b11;
-	assign ide_rd_n = 1'b1;
-	assign ide_wr_n = 1'b1;
-	assign ide_a = 3'b000;
-	assign ide_d = 16'hZZZZ;
-	assign ide_reset_n = 1'b1;
-`endif
 
 //---------- Audio ------------
 
@@ -405,7 +390,6 @@ assign kb_turbo_mode = softsw_regs[1*8];
 assign kb_hdd0_image = softsw_regs[2*8];
 assign kb_reset      = softsw_regs[7*8];
 
-`ifdef PHYSICAL_IDE
 //---------- Disks: CF card and images ------------
 
 pcxt_disks disks(
@@ -448,10 +432,6 @@ pcxt_disks disks(
 	.img_q_di(img_q_di),
 	.img_q_ack(img_q_ack)
 );
-`else
-assign img_q_wr = 1'b0;
-assign img_q_di = 24'h0;
-`endif
 
 
 //---------- OSD ------------

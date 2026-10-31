@@ -1,77 +1,34 @@
-// Model
+// The configuration of the PC/XT core of Karabas Go / Mini / Mini G (all three tops include it).
 
-// XC6SLX9 (ZXUno Family)
-// `define ZXUNO_512KB 
-// `define ZXUNO_2MB
-// `define ZXUNO_2MB_EXT
-// `define ZXUNCORE_512KB
-// `define ZXUNCORE_2MB
-// `define VGAWIFI
+// ROMs: Sergey Kiselev's XT BIOS 1.0.0a of MiSTer PCXT (SW/ROMs/pcxt_xtsergey.rom, 16 KB at
+// FC000-FFFFF: 720K / 1.44M floppies, two 1.44M drives, no CMOS) and the XTIDE BIOS (EC000-EFFFF).
+// Both start with these files and are written again by the rom loader of kg_mcu from the roms of
+// core*.json (0000-3FFF the 16 KB BIOS, an 8 KB one at 2000; 4000-7FFF the XTIDE BIOS). Read only
+// for the CPU, as the default of MiSTer 5ab34b8.
+`define ROM_BIOS "xtsergey.hex"
+`define XTIDE_BIOS "xtide.hex"
 
-// XC6SLX16 (ZXDos Family)
-// `define ZXDOS_512KB
-// `define ZXDOS_1MB
-// `define NGO
-
-// XC6SLX25 (ZXDos+ Family)
-// `define ZXDOSPLUS
-// `define UNOXT
-//`define UNOXT2
-`define KARABASGO
-
-// ROMs
-
-// karabas: the BIOS and the XTIDE BIOS read only for the CPU, as the default of MiSTer 5ab34b8
-// (a stray write changed them until the core was loaded again)
-// `define BIOS_WRITABLE = 1'b1;   // 0=No, 1=Yes
-
-// `define ROM_BIOS "pcxt31.hex" // 8Kb BIOS (Turbo XT BIOS 3.1: 360K floppies only)
-// karabas: Sergey Kiselev's XT BIOS 1.0.0a of MiSTer PCXT (SW/ROMs/pcxt_xtsergey.rom, FC000-FFFFF):
-// 720K / 1.44M floppies (two 1.44M drives, no CMOS)
-`define BIOS_16KB
-// karabas: the BIOS and the XTIDE BIOS also from the roms of core*.json (the mcu rom loader:
-// 0000-3FFF the 16 KB BIOS, an 8 KB one at 2000; 4000-7FFF the XTIDE BIOS); needs BIOS_16KB
-`define ROM_LOADER
-`define ROM_BIOS "xtsergey.hex" // 16Kb BIOS
-`define XTIDE_BIOS "xtide.hex" // Up to 16Kb
-
-// Splash Screen
-
+// The splash screen at power on
 `define SPLASH_ENABLE
-// `define SPLASH_SCR "splash_zxuno_512kb.hex"
-// `define SPLASH_SCR "splash_zxuno_2mb.hex"
-// `define SPLASH_SCR "splash_zxuncore_512kb.hex"
-// `define SPLASH_SCR "splash_zxuncore_2mb.hex"
-
-// `define SPLASH_SCR "splash_zxdos_512kb.hex"
-// `define SPLASH_SCR "splash_zxdos_1mb.hex"
-// `define SPLASH_SCR "splash_ngo.hex"
-
-// `define SPLASH_SCR "splash_unoxt.hex"
-//`define SPLASH_SCR "splash_unoxt2.hex"
-// `define SPLASH_SCR "splash_zxdosplus.hex"
 `define SPLASH_SCR "splash_karabas_go.hex"
 
-// Memory
-// `define MEM_512KB
-// `define MEM_1MB
-// `define MEM_2MB
-`define MEM_4MB
- 
-//`define PHISICAL_BUTTONS
-`define VIRTUAL_BUTTONS
+// Sound: Adlib (JTOPL2) and the Tandy sound chip (SN76489) besides the PC speaker
 `define SOUND_ADLIB
 `define SOUND_TANDY
+
+// The USB mouse of the mcu as a serial mouse on COM1
 `define MOUSE_COM1
-`define EMULATE_PS2
-`define AUDIO_DAC
-`define PHYSICAL_IDE
-// the floppy controller of MiSTer PCXT (HW/common/floppy.v), its disks from the file mounter
+
+// The floppy controller of MiSTer PCXT (rtl/common/floppy.v), its disks from the file mounter
 `define FLOPPY
 `define FDD_CLOCK_RATE 28'd50000000 // the clock of the chipset
-// karabas: the clock of the mcu at ports 2C0h / 2C1h (MC146818 registers; GET_RTC.EXE in hdd/)
+
+// The clock of the mcu at ports 2C0h / 2C1h (MC146818 registers; GET_RTC.EXE in hdd/)
 `define RTC_MCU
-// karabas: MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
+
+// MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
 `define MIDI_MPU401
-// karabas: the CPU of MiSTer PCXT 2026 (MCL86 of Boogermann / opengateware, HW/8088/mcl86_2026)
+
+// The CPU of MiSTer PCXT 2026 (MCL86 of Boogermann / opengateware, rtl/cpu); without it the
+// MCL86 of 2022 (rtl/cpu/mcl86_2022, not in the .prj files)
 `define MCL86_2026
