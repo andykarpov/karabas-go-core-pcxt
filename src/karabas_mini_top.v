@@ -148,7 +148,6 @@ assign FLASH_HOLD_N = 1'b1;
 assign FLASH_SCK = 1'b1;
 assign FLASH_DI = 1'b1;
 assign MIDI_RESET_N = 1'b1;
-midi_clk midi_clk_inst(.clk_50(clk_50), .midi_clk(MIDI_CLK));
 assign ESP_RESET_N = 1'bZ;
 assign ESP_BOOT_N = 1'bZ;
 assign FT_RESET = 1'b1;
@@ -186,6 +185,9 @@ wire hs, vs, dvi_only, kb_reset;
 wire [15:0] audio_l, audio_r;
 
 // MCU_SCK is not on a global clock pin: bursts at the link clock
+// MIDI: 12 MHz for the synthesizer
+midi_clk midi_clk_inst(.clk_50(clk_50), .midi_clk(MIDI_CLK));
+
 karabas_pcxt #(.BURST_MAX_MHZ(0)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
