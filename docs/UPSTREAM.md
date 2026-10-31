@@ -11,6 +11,7 @@
 | `fc23647`, `49b97f9`, `baaac36` | KF8237: TC в тактах ожидания, скорость шины | Ф5, sv2v |
 | `4f8cd84` | KF8288: DEN выключен, пока шина у DMA | Ф5 |
 | `6180e66`, `6db8e53` (с `ad211c3`) | микрокод MCL86: группа 0xF6, LAHF | Ф5; по содержанию микрокод = `6db8e53` |
+| `1dd8ac5`, `6b56b5a`, `2cab5c7`, `c2f04a6`, `7e17e10`, `c0b58e6` | новый MCL86 (Boogermann / opengateware): INTR между итерациями REP, тайминг LODS / STOSB / IN, режим 8086 и Fake 286 (у нас выключены) | Ф3: `src/rtl/cpu` (sv2v `3238779`); на железе ещё не проверен |
 | `dc3a14a` | TEST_N = 0 (WAIT не виснет), `port_b_in` 8255 | Ф3 |
 | `821cb1f` | PIT: mode 3, первый фронт счёта | Ф3; остальной `KF8253_Counter` = sv2v `821cb1f` |
 | `5e19ce2`, `740c2ea`, `480ee90` | MCL86: OF для ADD / ADC / SUB / SBB в RTL | Ф3; `sim/run_cpu_sim.sh` (384 случая, старое ядро — 16 ошибок) |
@@ -22,7 +23,7 @@
 | `d4c728b` | CRTC: начальный адрес раз за кадр | Ф3 |
 | `a85330c`, `4e9a32c` | ранний старт HSYNC / VSYNC | не нужны: у нас нет раннего старта (появился в MiSTer вместе со смещениями CRT), HSYNC на R2, VSYNC на R7 |
 | `4806f99`, `fd00d43` | RTC на 2C0h / 2C1h | Ф3: регистры `kg_mcu_rtc` (часы MCU), `GET_RTC.EXE` в `hdd/` |
-| `d66cfc0` (только выход) | MPU-401 UART, MIDI OUT | Ф3: свой `HW/uart/mpu401_tx.v` без приёмника и FIFO, на синтезатор платы (`MIDI_TX`; на Go / Mini ещё `MIDI_CLK` 12 МГц) |
+| `d66cfc0` (только выход) | MPU-401 UART, MIDI OUT | Ф3: свой `src/rtl/uart/mpu401_tx.v` без приёмника и FIFO, на синтезатор платы (`MIDI_TX`; на Go / Mini ещё `MIDI_CLK` 12 МГц) |
 | `73e928c` | задержка INT 8259A | было в форке |
 | `459a19d` | выбор FDC без `iorq` | Ф5 (обвязка из текущего `Peripherals.sv`) |
 
