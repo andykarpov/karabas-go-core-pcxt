@@ -77,6 +77,13 @@ module system(
 	,input    wire  [12:0]      joy0
 	,input    wire  [12:0]      joy1
 `endif
+`ifdef COM2_USB
+	// karabas: COM2 (2F8h) on the USB serial port of the mcu (kg_mcu_uart)
+	,input    wire  [7:0]       com2_rx_data
+	,input    wire  [7:0]       com2_rx_idx
+	,output   wire              com2_tx_wr
+	,output   wire  [7:0]       com2_tx_data
+`endif
 	
 	/*
 	output	wire					LED,
@@ -432,6 +439,12 @@ reg splash_status = 1'b0;
 `ifdef GAME_PORT
 		.joy0(joy0),
 		.joy1(joy1),
+`endif
+`ifdef COM2_USB
+		.com2_rx_data(com2_rx_data),
+		.com2_rx_idx(com2_rx_idx),
+		.com2_tx_wr(com2_tx_wr),
+		.com2_tx_data(com2_tx_data),
 `endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),

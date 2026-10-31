@@ -110,6 +110,8 @@ wire [15:0] fdd_mgmt_writedata, fdd_mgmt_readdata;
 wire [1:0] fdd_request;
 wire [7:0] rtc_a, rtc_di, rtc_do;
 wire [12:0] joy_l, joy_r;
+wire [7:0] com2_rx_data, com2_rx_idx, com2_tx_data;
+wire com2_tx_wr;
 wire rtc_cs, rtc_wr_n;
 wire romload_active, romload_wr;
 wire [31:0] romload_addr;
@@ -172,6 +174,12 @@ system sys_inst
 	,.joy0(joy_l)
 	,.joy1(joy_r)
 `endif
+`ifdef COM2_USB
+	,.com2_rx_data(com2_rx_data)
+	,.com2_rx_idx(com2_rx_idx)
+	,.com2_tx_wr(com2_tx_wr)
+	,.com2_tx_data(com2_tx_data)
+`endif
 `ifdef RTC_MCU
 	,.rtc_a(rtc_a)
 	,.rtc_di(rtc_di)
@@ -186,6 +194,10 @@ assign fdd_request = 2'b00;
 `endif
 `ifndef MIDI_MPU401
 assign midi_tx = 1'b1;
+`endif
+`ifndef COM2_USB
+assign com2_tx_wr = 1'b0;
+assign com2_tx_data = 8'h00;
 `endif
 `ifndef RTC_MCU
 assign rtc_a = 8'h00;
@@ -249,7 +261,11 @@ kg_mcu #(
 `else
 	.ENABLE_RTC(0),
 `endif
+`ifdef COM2_USB
+	.ENABLE_UART(1),
+`else
 	.ENABLE_UART(0),
+`endif
 	.ENABLE_MATRIX(1),
 	.ENABLE_DEBUG(0),
 	.ENABLE_IMG(1),
@@ -297,10 +313,10 @@ kg_mcu #(
 	.RTC_CS(rtc_cs),
 	.RTC_WR_N(rtc_wr_n),
 
-	.UART_RX_DATA(),
-	.UART_RX_IDX(),
-	.UART_TX_DATA(8'h0),
-	.UART_TX_WR(1'b0),
+	.UART_RX_DATA(com2_rx_data),
+	.UART_RX_IDX(com2_rx_idx),
+	.UART_TX_DATA(com2_tx_data),
+	.UART_TX_WR(com2_tx_wr),
 	.UART_TX_MODE(1'b0),
 	.UART_DLM(8'h0),
 	.UART_DLL(8'h0),

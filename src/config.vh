@@ -31,3 +31,6 @@
 
 // The game port (201h): two joysticks from the USB pads of the mcu
 `define GAME_PORT
+
+// COM2 (2F8h, IRQ 3) on the USB serial port of the mcu (115200 on the firmware side)
+`define COM2_USB

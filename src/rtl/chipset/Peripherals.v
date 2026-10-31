@@ -53,6 +53,13 @@ module PERIPHERALS (
 	input		wire	[12:0]		joy0,
 	input		wire	[12:0]		joy1,
 `endif
+`ifdef COM2_USB
+	// karabas: COM2 (2F8h, IRQ 3) on the USB serial port of the mcu (kg_mcu_uart), com_usb.v
+	input		wire	[7:0]			com2_rx_data,
+	input		wire	[7:0]			com2_rx_idx,
+	output	wire					com2_tx_wr,
+	output	wire	[7:0]			com2_tx_data,
+`endif
 	input		wire					clk_en_opl2,
 	output	wire	[15:0]		jtopl2_snd_e,
 	input		wire					adlibhide,
@@ -243,6 +250,24 @@ module PERIPHERALS (
 `endif
 	wire [7:0] interrupt_data_bus_out;
 	wire interrupt_to_cpu_buf;
+	// the requests of IRQ 3 (COM2), 4 (COM1, the mouse), 6 (the floppy)
+	wire irq3, irq4, irq6;
+`ifdef MOUSE_COM1
+	assign irq4 = uart_interrupt & ~uart_cs;
+`else
+	assign irq4 = interrupt_request[4];
+`endif
+`ifdef FLOPPY
+	assign irq6 = fdd_interrupt;
+`else
+	assign irq6 = interrupt_request[6];
+`endif
+`ifdef COM2_USB
+	wire com2_irq;
+	assign irq3 = com2_irq;
+`else
+	assign irq3 = interrupt_request[3];
+`endif
 	KF8259 u_KF8259(
 		.clock(clock),
 		.reset(reset),
@@ -256,19 +281,7 @@ module PERIPHERALS (
 		.slave_program_n(1'b1),
 		.interrupt_acknowledge_n(interrupt_acknowledge_n),
 		.interrupt_to_cpu(interrupt_to_cpu_buf),
-`ifdef FLOPPY
-`ifdef MOUSE_COM1
-		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`else
-		.interrupt_request({interrupt_request[7], fdd_interrupt, interrupt_request[5:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`endif
-`else
-`ifdef MOUSE_COM1
-		.interrupt_request({interrupt_request[7:5], uart_interrupt & ~uart_cs, interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`else
-		.interrupt_request({interrupt_request[7:4], interrupt_request[3:2], keybord_interrupt, timer_interrupt})
-`endif
-`endif		
+		.interrupt_request({interrupt_request[7], irq6, interrupt_request[5], irq4, irq3, interrupt_request[2], keybord_interrupt, timer_interrupt})
 	);
 	
 	always @(posedge clock or posedge reset)
@@ -966,6 +979,35 @@ module PERIPHERALS (
 			fdd_readdata <= fdd_dma_readdata;
 `endif
 	 
+`ifdef COM2_USB
+	// a write at the end of its strobe, a read latched at its start (it pops RBR, clears THRE)
+	wire com2_cs = ~address_enable_n && (address[15:3] == (16'h02F8 >> 3));
+	reg [7:0] com2_wdata = 8'h00;
+	reg [7:0] com2_readdata = 8'h00;
+	wire [7:0] com2_readdata_1;
+	wire com2_read = ~io_read_n & prev_io_read_n & com2_cs;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			com2_wdata <= internal_data_bus;
+		if (com2_read)
+			com2_readdata <= com2_readdata_1;
+	end
+	com_usb com2(
+		.clk(clock),
+		.reset(reset),
+		.address(address[2:0]),
+		.write(io_write_n & ~prev_io_write_n & com2_cs),
+		.read(com2_read),
+		.writedata(com2_wdata),
+		.readdata(com2_readdata_1),
+		.irq(com2_irq),
+		.rx_data(com2_rx_data),
+		.rx_idx(com2_rx_idx),
+		.tx_wr(com2_tx_wr),
+		.tx_data(com2_tx_data)
+	);
+`endif
+
 `ifdef GAME_PORT
 	wire [7:0] joy_data;
 	game_port joysticks(
@@ -1070,6 +1112,12 @@ module PERIPHERALS (
           data_bus_out_from_chipset <= 1'b1;
           data_bus_out <= uart_readdata;
       end
+`endif
+`ifdef COM2_USB
+		else if (com2_cs && ~io_read_n) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= com2_readdata;
+		end
 `endif
 `ifdef GAME_PORT
 		else if (joystick_select && ~io_read_n) begin
