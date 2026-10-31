@@ -22,7 +22,9 @@
    write: 22 bytes of gap 2 after the ID, then 12 x 00, A1 A1 A1 FB, the buffer, the CRC, 4E;
    format: the whole track at the first sector of it (from the index: gap 4a, the index mark,
    gap 1, the sectors R = 1..spt, N = 2, the data of the buffer, gap 3 by the sectors per track,
-   4E to the index); the other sectors of the track only end.
+   4E to the index); the other sectors of the track only end. A format with other sectors per
+   track (op_spt, from floppy.v) than the drive has sets them, and the rate from them (f_rate).
+   Without this floppy.v would hang the format: DOS says "Not ready".
    op_err: 0 done, 1 sector not found, 2 data CRC, 3 no index (no disk) / no track 0.
  - no disk: a selected drive with the motor running and no index for NOIDX_US is not present
    (floppy.v sees a disk change); an index pulse on such a drive starts a probe.
@@ -57,6 +59,8 @@ module pcxt_fdd_phys #(
 	input wire [1:0] op_kind,
 	input wire op_n,
 	input wire [15:0] op_lba,
+	input wire [5:0] op_spt,            // format: the sectors per track and the rate (of floppy.v)
+	input wire [1:0] op_rate,
 	output reg op_done = 1'b0,
 	output reg [1:0] op_err = 2'd0,
 
@@ -75,7 +79,11 @@ module pcxt_fdd_phys #(
 	input wire [7:0] buf_q,
 
 	input wire [3:0] fdd_in,
-	output wire [7:0] fdd_out
+	output wire [7:0] fdd_out,
+
+	// diagnostics (floppy.v pages 0..6 at 3F0h / 3F1h, the page by a write of 3F3h)
+	input wire [2:0] dbg_sel,
+	output reg [15:0] dbg_word
 );
 
 // CRC-CCITT (x^16 + x^12 + x^5 + 1) of a byte, MSB first
@@ -218,6 +226,12 @@ reg [1:0] id_rate = 2'd0;           // the rate of the last ID by its length (11
 localparam [14:0] TH_300 = (CELL_500 + CELL_300) * 56;
 localparam [14:0] TH_250 = (CELL_300 + CELL_250) * 56;
 reg rx_buf = 1'b0;                  // the data field goes into the buffer
+// diagnostics: syncs, IDs with a good / bad CRC since the start of the last probe / op (dbg_clr),
+// the last good ID and its length in clocks
+reg dbg_clr = 1'b0;
+reg [7:0] n_sync = 8'd0, n_ok = 8'd0, n_bad = 8'd0;
+reg [7:0] g_c = 8'd0, g_h = 8'd0, g_r = 8'd0, g_n = 8'd0;
+reg [14:0] g_clks = 15'd0, id_len = 15'd0;
 reg [8:0] rx_a = 9'd0;
 
 always @(posedge clk) begin
@@ -228,6 +242,26 @@ always @(posedge clk) begin
 		id_clks <= 15'd0;
 	else if (id_clks != 15'h7FFF)
 		id_clks <= id_clks + 15'd1;
+	if (dbg_clr) begin
+		n_sync <= 8'd0;
+		n_ok <= 8'd0;
+		n_bad <= 8'd0;
+	end
+	else begin
+		if (rx_sync && n_sync != 8'hFF)
+			n_sync <= n_sync + 8'd1;
+		if (id_stb && crc_ok && n_ok != 8'hFF)
+			n_ok <= n_ok + 8'd1;
+		if (id_stb && !crc_ok && n_bad != 8'hFF)
+			n_bad <= n_bad + 8'd1;
+	end
+	if (id_stb && crc_ok) begin
+		g_c <= idc;
+		g_h <= idh;
+		g_r <= idr;
+		g_n <= idn;
+		g_clks <= id_len;
+	end
 	if (!rx_en) begin
 		mk <= 2'd0;
 		after_sync <= 1'b0;
@@ -263,6 +297,7 @@ always @(posedge clk) begin
 				if (mcnt == 10'd5) begin
 					mk <= 2'd0;
 					id_stb <= 1'b1;
+					id_len <= id_clks;
 					crc_ok <= (crc_n == 16'h0000);
 					id_rate <= (id_clks < TH_300) ? 2'd0 : (id_clks < TH_250) ? 2'd1 : 2'd2;
 				end
@@ -375,6 +410,9 @@ reg [15:0] lba = 16'd0;
 reg [1:0] op_pend_k = 2'd0;
 reg op_pend_n = 1'b0;
 reg [15:0] op_pend_lba = 16'd0;
+reg [5:0] op_pend_spt = 6'd18;
+reg [1:0] op_pend_rate = 2'd0;
+wire [1:0] f_rate = (op_pend_spt > 6'd10) ? 2'd0 : (op_pend_rate == 2'd1) ? 2'd1 : 2'd2;
 reg [1:0] probe_pend = 2'b00;
 reg [6:0] steps = 7'd0;
 reg moved = 1'b0;
@@ -405,11 +443,14 @@ always @(posedge clk) begin
 	geo_upd <= 2'b00;
 	tmr_clr <= 1'b0;
 	tx_start <= 1'b0;
+	dbg_clr <= 1'b0;
 
 	if (op_go) begin
 		op_pend_k <= op_kind;
 		op_pend_n <= op_n;
 		op_pend_lba <= op_lba;
+		op_pend_spt <= op_spt;
+		op_pend_rate <= op_rate;
 	end
 	if (probe[0]) probe_pend[0] <= 1'b1;
 	if (probe[1]) probe_pend[1] <= 1'b1;
@@ -440,9 +481,18 @@ always @(posedge clk) begin
 				lba <= op_pend_lba;
 				probing <= 1'b0;
 				active <= 1'b1;
+				dbg_clr <= 1'b1;
 				tries <= 2'd0;
 				reseek <= 1'b0;
 				fmt <= (op_pend_k == 2'd3);
+				// a format with other sectors per track gives the drive its geometry: more than 10
+				// sectors 500 kbit/s, else 250, or 300 when floppy.v has it (360K in a 1.2M drive;
+				// the rate of floppy.v is 250 after a reset, whether the BIOS sets it or not)
+				if (op_pend_k == 2'd3 && op_pend_spt != (op_pend_n ? spt1 : spt0)) begin
+					if (op_pend_n) begin spt1 <= op_pend_spt; rate1 <= f_rate; end
+					else begin spt0 <= op_pend_spt; rate0 <= f_rate; end
+					if (op_pend_n) dstep[1] <= (f_rate == 2'd1); else dstep[0] <= (f_rate == 2'd1);
+				end
 				st <= S_SPIN;
 			end
 			else if (probe_pend != 2'b00) begin
@@ -450,6 +500,7 @@ always @(posedge clk) begin
 				begin if (~probe_pend[0]) probe_pend[1] <= 1'b0; else probe_pend[0] <= 1'b0; end
 				probing <= 1'b1;
 				active <= 1'b1;
+				dbg_clr <= 1'b1;
 				fmt_ok <= 1'b0;
 				st <= S_SPIN;
 			end
@@ -769,6 +820,18 @@ always @(posedge clk) begin
 		default: st <= S_IDLE;
 	endcase
 end
+
+// the pages (dbg_word with dbg_sel in the same clock)
+always @(*)
+	case (dbg_sel)
+		3'd0: dbg_word = {n_bad, n_ok};
+		3'd1: dbg_word = {n_sync, op_err, 1'b0, st};
+		3'd2: dbg_word = {g_h, g_c};
+		3'd3: dbg_word = {g_n, g_r};
+		3'd4: dbg_word = {nodisk[0], present[0], heads2[0], dstep[0], wp[0], 1'b0, rate0, 2'b00, spt0};
+		3'd5: dbg_word = {nodisk[1], present[1], heads2[1], dstep[1], wp[1], 1'b0, rate1, 2'b00, spt1};
+		default: dbg_word = {1'b0, g_clks};
+	endcase
 
 assign fdd_out = {
 	tx_en & tx_pulse,                   // WDATA

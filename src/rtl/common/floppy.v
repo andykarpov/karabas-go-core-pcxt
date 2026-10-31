@@ -5,7 +5,8 @@
  always block, the fifo is 512 bytes deep. One fix: the last sector of a format with DMA
  (cmd_format_input_cut). For the physical drives (pcxt_fdd_phys): management registers 6 (a
  media error ends the request with an error status; read: the request is a format) and 7 (the
- selected drive and the motors). Everything else as MiSTer.
+ selected drive and the motors), register 1 bit 1 (a physical drive: a format with other sectors
+ per track sets them, as a real disk would). Everything else as MiSTer.
 */
 
 /*
@@ -69,7 +70,11 @@ module floppy
 	karabas (pcxt_fdd_phys, the physical drives):
 	0x06 write:    a media error ends the sector request: 1 sector not found, 2 data CRC, 3 no
 	               address mark (no disk)
-	0x06.[0] read: the request is a format
+	0x06 read:     [0] the request is a format, [2:1] the data rate (0 500, 1 300, 2 250 kbit/s),
+	               [15:8] the sectors per track of the selected drive
+	0x01.[1]:      a physical drive: a format with other sectors per track sets them
+	0x08..0x0E:    diagnostics of the physical drives, read by the PC at 3F0h / 3F1h, page (0..6)
+	               by a write of 3F3h
 	0x07 read:     [2] the selected drive, [1:0] the motor bits of the digital output register
 	*/
 	input       [3:0] mgmt_address,
@@ -92,7 +97,7 @@ always @(posedge clk) clk_rate <= clock_rate;
 //------------------------------------------------------------------------------ media management
 
 assign mgmt_readdata = (!mgmt_address) ? {selected_drive[0], sd_sector[14:0]} : (&mgmt_address) ? fifo_readdata :
-	(mgmt_address == 4'd6) ? {15'd0, cmd_format_in_progress} : // karabas
+	(mgmt_address == 4'd6) ? {media_sectors_per_track[selected_drive[0]], 5'd0, data_rate, cmd_format_in_progress} : // karabas
 	(mgmt_address == 4'd7) ? {13'd0, selected_drive[0], motor_enable} : 16'd1;
 
 // karabas: a media error of a physical drive while a sector is requested (assigned after state)
@@ -109,17 +114,27 @@ assign fdd0_inserted = media_present[0];
 
 reg [1:0] wp_sys;
 always @(posedge clk) if(mgmt_write && mgmt_address == 4'd1) wp_sys[mgmt_fddn] <= mgmt_writedata[0];
+
+// karabas: register 1 bit 1, a physical drive: a format sets its sectors per track (phys_format)
+reg [1:0] phys_sys;
+always @(posedge clk) if(mgmt_write && mgmt_address == 4'd1) phys_sys[mgmt_fddn] <= mgmt_writedata[1];
 wire [1:0] media_writeprotected = wp_sys | wp;
 
 (* ramstyle = "logic" *) reg [7:0] media_cylinders [0:1];
 always @(posedge clk) if(mgmt_write && mgmt_address == 4'd2) media_cylinders[mgmt_fddn] <= mgmt_writedata[7:0];
 
 (* ramstyle = "logic" *) reg [7:0] media_sectors_per_track [0:1];
-always @(posedge clk) if(mgmt_write && mgmt_address == 4'd3) media_sectors_per_track[mgmt_fddn] <= mgmt_writedata[7:0];
+always @(posedge clk)
+	if(mgmt_write && mgmt_address == 4'd3) media_sectors_per_track[mgmt_fddn] <= mgmt_writedata[7:0];
+	else if(phys_format)                   media_sectors_per_track[selected_drive[0]] <= command[15:8]; // karabas
 
 (* ramstyle = "logic" *) reg [15:0] media_sector_count [0:1];
-always @(posedge clk) if(mgmt_write && mgmt_address == 4'd4 && ~mgmt_fddn) media_sector_count[0] <= mgmt_writedata;
-always @(posedge clk) if(mgmt_write && mgmt_address == 4'd4 &&  mgmt_fddn) media_sector_count[1] <= mgmt_writedata;
+always @(posedge clk)
+	if(mgmt_write && mgmt_address == 4'd4 && ~mgmt_fddn) media_sector_count[0] <= mgmt_writedata;
+	else if(phys_format && ~selected_drive[0])            media_sector_count[0] <= phys_count; // karabas
+always @(posedge clk)
+	if(mgmt_write && mgmt_address == 4'd4 &&  mgmt_fddn) media_sector_count[1] <= mgmt_writedata;
+	else if(phys_format &&  selected_drive[0])            media_sector_count[1] <= phys_count; // karabas
 
 (* ramstyle = "logic" *) reg [1:0] media_heads [0:1];
 always @(posedge clk) if(mgmt_write && mgmt_address == 4'd5) media_heads[mgmt_fddn] <= mgmt_writedata[1:0];
@@ -132,7 +147,18 @@ wire fifo_write = mgmt_write && &mgmt_address;
 wire ndma_read  = io_read  && io_address == 3'd5 && execute_ndma && cmd_read_normal_in_progress;
 wire ndma_write = io_write && io_address == 3'd5 && execute_ndma && (cmd_write_normal_in_progress || cmd_format_in_progress);
 
+// karabas: the diagnostics of the physical drives: management registers 8..14 (pcxt_fdd_phys),
+// page select by a write of 3F3h, read at 3F0h (low byte) / 3F1h (high byte), 3F3h the page
+reg [15:0] dbg_reg [0:6];
+always @(posedge clk) if(mgmt_write && mgmt_address >= 4'd8 && mgmt_address <= 4'd14) dbg_reg[mgmt_address - 4'd8] <= mgmt_writedata;
+reg [2:0] dbg_page;
+always @(posedge clk) if(~rst_n) dbg_page <= 3'd0; else if(io_write && io_address == 3'd3) dbg_page <= io_writedata[2:0];
+wire [15:0] dbg_word = (dbg_page == 3'd7) ? 16'd0 : dbg_reg[dbg_page];
+
 wire [7:0] io_readdata_prepare =
+    (io_address == 3'd0) ? dbg_word[7:0] :  // karabas
+    (io_address == 3'd1) ? dbg_word[15:8] : // karabas
+    (io_address == 3'd3) ? { 5'd0, dbg_page } : // karabas
     (io_address == 3'd2) ? { 2'b0, motor_enable[1], motor_enable[0], dma_irq_enable, enable, selected_drive } : //digital output register
     (io_address == 3'd4) ? { datareg_ready, transfer_to_cpu, execute_ndma, busy, in_seek_mode } :  //main status reg
     (ndma_read)          ? fifo_q :
@@ -594,9 +620,14 @@ wire cmd_format_hang_on_start =
 	~motor_enable[selected_drive[0]] ||                          //motor off
 	~media_present[selected_drive[0]] ||                         //no media
 	command[23:16] != 8'h02 ||                                   //invalid sector size
-	command[15:8] != media_sectors_per_track[selected_drive[0]]; //invalid secotr count
+	(command[15:8] != media_sectors_per_track[selected_drive[0]] && ~phys_sys[selected_drive[0]]); //invalid secotr count (karabas: a physical drive takes it)
 
 wire cmd_format_ok_at_start = cmd_format_track_start && ~cmd_format_writeprotected_at_start && ~cmd_format_hang_on_start;
+
+// karabas: a format of a physical drive with other sectors per track: its new geometry
+wire phys_format = cmd_format_ok_at_start && phys_sys[selected_drive[0]] && command[15:8] != media_sectors_per_track[selected_drive[0]];
+wire [15:0] phys_spt80 = { 2'd0, command[15:8], 6'd0 } + { 4'd0, command[15:8], 4'd0 };
+wire [15:0] phys_count = ((media_cylinders[selected_drive[0]] == 8'd40) ? { 1'b0, phys_spt80[15:1] } : phys_spt80) << (media_heads[selected_drive[0]] == 2'd2);
 
 reg [31:0] format_data;
 always @(posedge clk) begin

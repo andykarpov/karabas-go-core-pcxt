@@ -8,8 +8,8 @@
  - drive A on DS1: 500 kbit/s, 4 sectors, 2 heads, the rotation 1 % slow, write protect off;
  - drive B on DS0: 250 kbit/s, 5 sectors, 1 head, 2 % fast, write protected.
  Probe of both (the geometry), reads (head 0 / 1, after a seek), a write and its read back, a
- format of a track and its read back, a sector on an unformatted track (not found), a probe
- without a disk. Ends with "tb_fdd_phys: N errors".
+ format of a track and its read back, a format with other sectors per track (the new geometry), a
+ sector on an unformatted track (not found), a probe without a disk. Ends with "tb_fdd_phys: N errors".
 */
 
 module tb_fdd_phys;
@@ -26,6 +26,8 @@ reg op_go = 1'b0;
 reg [1:0] op_kind = 2'd0;
 reg op_n = 1'b0;
 reg [15:0] op_lba = 16'd0;
+reg [5:0] op_spt = 6'd4;
+reg [1:0] op_rate = 2'd0;
 wire op_done;
 wire [1:0] op_err;
 wire [1:0] geo_upd;
@@ -54,7 +56,7 @@ pcxt_fdd_phys #(
 ) dut (
 	.clk(clk), .reset(reset),
 	.map0(map0), .map1(map1), .probe(probe), .dor_motor(dor_motor), .dor_drive(dor_drive),
-	.op_go(op_go), .op_kind(op_kind), .op_n(op_n), .op_lba(op_lba), .op_done(op_done), .op_err(op_err),
+	.op_go(op_go), .op_kind(op_kind), .op_n(op_n), .op_lba(op_lba), .op_spt(op_spt), .op_rate(op_rate), .op_done(op_done), .op_err(op_err),
 	.geo_upd(geo_upd), .geo_n(geo_n), .geo_present(geo_present), .geo_wp(geo_wp), .geo_cyl(geo_cyl),
 	.geo_spt(geo_spt), .geo_secs(geo_secs), .geo_heads(geo_heads),
 	.buf_we(buf_we), .buf_a(buf_a), .buf_wd(buf_wd), .buf_q(buf_q),
@@ -63,7 +65,7 @@ pcxt_fdd_phys #(
 
 fdd_model #(.DS(1), .CELL(10), .SPT(4), .HEADS(2), .TRK_BYTES(3000), .SPEED(1.01), .CYL0(5)) drv_a (
 	.fdd_out(fdd_out), .fdd_in(in_a));
-fdd_model #(.DS(0), .CELL(20), .SPT(5), .HEADS(1), .TRK_BYTES(3700), .SPEED(0.98), .CYL0(2)) drv_b (
+fdd_model #(.DS(0), .CELL(20), .SPT(5), .HEADS(1), .TRK_BYTES(4200), .SPEED(0.98), .CYL0(2)) drv_b (
 	.fdd_out(fdd_out), .fdd_in(in_b));
 
 integer errors = 0;
@@ -200,6 +202,22 @@ initial begin
 	dor_drive = 1'b1;
 	dor_motor = 2'b10;
 	do_op(2'd1, 1, 16'd13, 2'd0);  check_buf(2, 0, 4, -1);
+
+	// B: a format of c 3 with 6 sectors (the disk has 5; 250 kbit/s from floppy.v), then its
+	// geometry is 6 sectors: lba = c * 6 + r - 1
+	for (i = 0; i < 512; i = i + 1) bufm[i] = 8'hE5;
+	op_spt = 6'd6;
+	op_rate = 2'd2;
+	for (i = 18; i < 24; i = i + 1) do_op(2'd3, 1, i, 2'd0);
+	op_spt = 6'd4;
+	op_rate = 2'd0;
+	if (drv_b.fmt_ids !== 6) begin
+		$display("ERROR: format of 6 sectors wrote %0d IDs", drv_b.fmt_ids);
+		errors = errors + 1;
+	end
+	check_geo(1, 1, 6, 1, 80, 1);
+	for (i = 0; i < 512; i = i + 1) bufm[i] = 8'h00;
+	do_op(2'd1, 1, 16'd19, 2'd0);  check_buf(3, 0, 2, 8'hE5);
 
 	// no disk in A
 	dor_motor = 2'b00;

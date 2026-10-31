@@ -21,12 +21,14 @@
  PHYS = 1 (Karabas Go): a drive whose slot the mcu maps to a physical drive (CMD_IMG_PHYS: slot 2 /
  3, drive 1 DS0 / 2 DS1; a mount of the slot ends it) goes to pcxt_fdd_phys (rtl/fdd): its
  geometry from the probe there (written as on a mount), its requests as ops on the buffer here
- (management register 6: format or write; 7, polled while idle: the motors and the selected
- drive of floppy.v):
+ (management register 6: format or write, and for a format the sectors per track and the data
+ rate; 7, polled while idle: the motors and the selected drive of floppy.v; register 1 bit 1
+ written on the mount: a physical drive, whose format sets the sectors per track):
  - read: the op fills the buffer, then the 512 bytes into the fifo;
  - write / format: 511 bytes out of the fifo into the buffer, the last one only read (the
    request stays until the op ends), the op, then the last byte taken;
- - an error of the op goes to register 6 (floppy.v ends the command with an error status).
+ - an error of the op goes to register 6 (floppy.v ends the command with an error status);
+ - while idle the diagnostics of pcxt_fdd_phys go to registers 8..14 (ports 3F0h / 3F1h / 3F3h).
 */
 
 module pcxt_fdd #(
@@ -94,7 +96,11 @@ reg [1:0] probe = 2'b00;
 reg [2:0] dor = 3'd0;               // { selected drive, motors } of floppy.v
 reg op_go = 1'b0;
 reg [1:0] op_kind = 2'd0;
+reg [5:0] op_spt = 6'd18;           // a format: its sectors per track and data rate (register 6)
+reg [1:0] op_rate = 2'd0;
 reg p_on = 1'b0;                    // an op owns the buffer
+reg [2:0] dbg_sel = 3'd0;
+wire [15:0] dbg_word;
 wire op_done;
 wire [1:0] op_err;
 wire [1:0] geo_upd;
@@ -136,6 +142,8 @@ generate if (PHYS) begin : g_phys
 		.op_kind(op_kind),
 		.op_n(drive),
 		.op_lba(sdc_sector[15:0]),
+		.op_spt(op_spt),
+		.op_rate(op_rate),
 		.op_done(op_done),
 		.op_err(op_err),
 		.geo_upd(geo_upd),
@@ -151,9 +159,12 @@ generate if (PHYS) begin : g_phys
 		.buf_wd(ph_wd),
 		.buf_q(wbuf_q),
 		.fdd_in(fdd_in),
-		.fdd_out(fdd_out)
+		.fdd_out(fdd_out),
+		.dbg_sel(dbg_sel),
+		.dbg_word(dbg_word)
 	);
 end else begin : g_no_phys
+	assign dbg_word = 16'd0;
 	assign op_done = 1'b0;
 	assign op_err = 2'd0;
 	assign geo_upd = 2'b00;
@@ -209,8 +220,16 @@ always @(posedge clk) begin
 				state <= S_REQ;
 			end
 			else if (PHYS) begin
-				// the motors / drive of floppy.v, for the physical drives
-				mgmt_address <= 4'd7;
+				// the diagnostics of pcxt_fdd_phys into registers 8..14, then the motors / drive
+				// of floppy.v (register 7) for the physical drives
+				dbg_sel <= dbg_sel + 3'd1;
+				if (dbg_sel == 3'd7)
+					mgmt_address <= 4'd7;
+				else begin
+					mgmt_address <= 4'd8 + {1'b0, dbg_sel};
+					mgmt_write <= 1'b1;
+					mgmt_writedata <= dbg_word;
+				end
 				if (mgmt_address == 4'd7)
 					dor <= mgmt_readdata[2:0];
 			end
@@ -219,7 +238,7 @@ always @(posedge clk) begin
 			mgmt_write <= 1'b1;
 			step <= step + 3'd1;
 			case (step)
-				3'd0: begin mgmt_address <= 4'd1; mgmt_writedata <= {15'd0, phys_n & geo_wp}; end
+				3'd0: begin mgmt_address <= 4'd1; mgmt_writedata <= {14'd0, phys_n, phys_n & geo_wp}; end
 				3'd1: begin mgmt_address <= 4'd2; mgmt_writedata <= {8'd0, phys_n ? geo_cyl : img_cyl}; end
 				3'd2: begin mgmt_address <= 4'd3; mgmt_writedata <= {8'd0, phys_n ? geo_spt : img_spt}; end
 				3'd3: begin mgmt_address <= 4'd4; mgmt_writedata <= phys_n ? geo_secs : secs; end
@@ -250,6 +269,8 @@ always @(posedge clk) begin
 		// PHYS: a read goes to the op, a write / format first through the fifo
 		S_PKIND: begin
 			op_kind <= request[0] ? 2'd1 : mgmt_readdata[0] ? 2'd3 : 2'd2;
+			op_spt <= mgmt_readdata[13:8];
+			op_rate <= mgmt_readdata[2:1];
 			mgmt_address <= 4'd15;
 			p_on <= 1'b1;
 			if (request[0]) begin
