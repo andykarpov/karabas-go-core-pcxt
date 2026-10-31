@@ -135,13 +135,6 @@ assign FT_SPI_MOSI = 1'b0;
 assign MWR_N[1] = 1'b1;
 assign MRD_N = 2'b10;
 assign MD[15:8] = 8'bZZZZZZZZ;
-assign SDR_BA = 2'b00;
-assign SDR_A = 13'b0000000000000;
-assign SDR_CLK = 1'b0;
-assign SDR_DQM = 2'b00;
-assign SDR_WE_N = 1'b1;
-assign SDR_CAS_N = 1'b1;
-assign SDR_RAS_N = 1'b1;
 assign TAPE_OUT = 1'b0;
 assign FLASH_CS_N = 1'b1;
 assign FLASH_WP_N = 1'b1;
@@ -180,10 +173,11 @@ assign areset = ~locked;
 
 wire [23:0] rgb;
 wire hs, vs, dvi_only, kb_reset;
+wire fb_de, fb_on;
 wire [15:0] audio_l, audio_r;
 
 // Rev.G has MCU_SCK on a global clock pin: bursts at up to 32 MHz
-karabas_pcxt #(.BURST_MAX_MHZ(32)) pcxt(
+karabas_pcxt #(.BURST_MAX_MHZ(32), .FB(1)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
 	.clk_vga(clk_28_571),
@@ -214,7 +208,18 @@ karabas_pcxt #(.BURST_MAX_MHZ(32)) pcxt(
 	.vga_rgb(rgb),
 	.vga_hs(hs),
 	.vga_vs(vs),
+	.vga_de(fb_de),
+	.fb_on(fb_on),
 	.dvi_only(dvi_only),
+
+	.sdr_clk(SDR_CLK),
+	.sdr_a(SDR_A),
+	.sdr_ba(SDR_BA),
+	.sdr_dq(SDR_DQ),
+	.sdr_dqm(SDR_DQM),
+	.sdr_ras_n(SDR_RAS_N),
+	.sdr_cas_n(SDR_CAS_N),
+	.sdr_we_n(SDR_WE_N),
 
 	.audio_l(audio_l),
 	.audio_r(audio_r),
@@ -225,9 +230,14 @@ karabas_pcxt #(.BURST_MAX_MHZ(32)) pcxt(
 
 //---------- HDMI ------------
 
-// hdmi frame converter: fits the sync into 720x480
-wire [23:0] hdmi_rgb;
-wire hdmi_hs, hdmi_vs, hdmi_blank;
+// the frame buffer (fb_on, OSD item 0): its fixed raster as it is; Direct: hdmi_frame fits the
+// sync of the scandoubled picture into 720x480
+wire [23:0] hdmi_rgb, frame_rgb;
+wire hdmi_hs, hdmi_vs, frame_hs, frame_vs, frame_blank;
+assign hdmi_rgb = fb_on ? rgb : frame_rgb;
+assign hdmi_hs = fb_on ? hs : frame_hs;
+assign hdmi_vs = fb_on ? vs : frame_vs;
+wire hdmi_de = fb_on ? fb_de : ~frame_blank;
 hdmi_frame hdmi_frame(
 	.clk_rgb(clk_28_571),
 	.clk_vga(clk_28_571),
@@ -235,10 +245,10 @@ hdmi_frame hdmi_frame(
 	.rgb({rgb[23:18], rgb[15:10], rgb[7:2]}),
 	.hs(hs),
 	.vs(vs),
-	.hdmi_rgb(hdmi_rgb),
-	.hdmi_hs(hdmi_hs),
-	.hdmi_vs(hdmi_vs),
-	.hdmi_blank(hdmi_blank),
+	.hdmi_rgb(frame_rgb),
+	.hdmi_hs(frame_hs),
+	.hdmi_vs(frame_vs),
+	.hdmi_blank(frame_blank),
 	.width(),
 	.height()
 );
@@ -250,7 +260,7 @@ zhdmi_top zhdmi_top(
 	.vga_rgb(hdmi_rgb),
 	.vga_hs(hdmi_hs),
 	.vga_vs(hdmi_vs),
-	.vga_de(~hdmi_blank),
+	.vga_de(hdmi_de),
 
 	.audio_en(~dvi_only),
 	.audio_l(audio_l),

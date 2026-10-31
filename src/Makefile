@@ -35,8 +35,9 @@ MAP_T_minig = 2
 MAP_OPTS = -logic_opt off -ol high -xt 3 -register_duplication off -r 4 -global_opt off -mt off -ir off -pr off -lc off -power off
 PAR_OPTS = -ol high -mt off
 
-# included by the sources, not in the prj
-INCLUDES = config.vh $(wildcard rtl/common/*.hex rtl/video/*.hex)
+# included by the sources, not in the prj; not the BIOS / XTIDE BIOS (xtsergey.hex, xtide.hex): they are
+# only the first contents of their block RAM, the rom loader writes the roms of core*.json over them
+INCLUDES = config.vh $(filter-out rtl/common/xtsergey.hex rtl/common/xtide.hex,$(wildcard rtl/common/*.hex rtl/video/*.hex))
 
 .PHONY: all clean $(BOARDS) $(BOARDS:=-xst) $(BOARDS:=-impl) $(BOARDS:=-core) $(BOARDS:=-report)
 
@@ -62,7 +63,9 @@ $(KG_$(1)): karabas_$(1)_top.bin $(JSON_$(1)) $(wildcard rom/*.rom)
 $(1): $(KG_$(1))
 $(1)-xst: karabas_$(1)_top.ngc
 $(1)-impl: karabas_$(1)_top.bin
-$(1)-core: $(KG_$(1))
+# repack the core file only (a new build number or ROM in the json, rom/*.rom), the bitstream as it is
+$(1)-core:
+	python3 make_core.py $(JSON_$(1)) $(KG_$(1))
 $(1)-report:
 	@grep -E "Number of (Slice LUTs|occupied Slices|RAMB16BWERs|RAMB8BWERs|DSP48A1s):" karabas_$(1)_top_map.mrp
 	@grep -E "constraints? (was|were) met|constraints? not met|Timing Score" karabas_$(1)_top.par | sort -u

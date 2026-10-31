@@ -24,6 +24,7 @@
 | `a85330c`, `4e9a32c` | ранний старт HSYNC / VSYNC | не нужны: у нас нет раннего старта (появился в MiSTer вместе со смещениями CRT), HSYNC на R2, VSYNC на R7 |
 | `4806f99`, `fd00d43` | RTC на 2C0h / 2C1h | Ф3: регистры `kg_mcu_rtc` (часы MCU), `GET_RTC.EXE` в `hdd/` |
 | `d66cfc0` (только выход) | MPU-401 UART, MIDI OUT | Ф3: свой `src/rtl/uart/mpu401_tx.v` без приёмника и FIFO, на синтезатор платы (`MIDI_TX`; на Go / Mini ещё `MIDI_CLK` 12 МГц) |
+| `1b5c54c`, `6ceaef3`, `ea7cb34` (идея) | постоянный HDMI-растр | Ф3: свой фрейм-буфер в SDRAM (`src/rtl/fb`), проверен на Mini G (Area 5150) |
 | `73e928c` | задержка INT 8259A | было в форке |
 | `459a19d` | выбор FDC без `iorq` | Ф5 (обвязка из текущего `Peripherals.sv`) |
 
