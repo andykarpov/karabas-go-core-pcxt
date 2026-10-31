@@ -99,6 +99,8 @@ Mini G 26103103 на железе: Sergey BIOS и загрузчик ROM раб�
 
 Mini G 26103104 на железе: загрузка с дискеты до «Starting MS-DOS...», чтение DEBUG `L` в страницы 1, 2, 9 и корневой каталог — верно. DOS с дискеты: DIR давал «Divide overflow». Причина: микрокод MCL86 MiSTer `8f9c5d1` (у нас), NOT r/m8 портил CF / OF; сборка 26103105 с 8 словами `6180e66` + `6db8e53` — ошибка ушла, DOS с дискеты грузится (CONFIG.SYS без COUNTRY, без AUTOEXEC), DIR A: работает. Открыто: COUNTRY=001 и AUTOEXEC.BAT (SETUP) с новым микрокодом, запись, Go / Mini.
 
+Mini G 26103106/26103107 на железе: запись портила сектора (FORMAT, COPY): в данных байты стека CPU (F000:xxxx, 0040, флаги). Причина: KF8288 держал DEN, пока шина у DMA (фикс MiSTer `4f8cd84` не попал в форк). 26103107: `COPY` + `FC /B` без отличий, FORMAT + DIR A: работают, установщик MS-DOS 6.22 с дискеты грузится (с COUNTRY=001 и AUTOEXEC). Ф5 на Mini G проверена. Открыто: сборки Go / Mini, write protect из OSD (по желанию).
+
 - FDC: `floppy.v` из MiSTer (ao486, Aleksander Osman / Alexey Melnikov, BSD-лицензия; немного SV — перевести на Verilog-2001). Порты 0x3F0–0x3F7, DMA канал 2 (`dma_request[2]` уже выведен из `Chipset`), IRQ 6.
 - Его интерфейс `mgmt` (сектора от HPS MiSTer) заменить на запросы к `img_sdc`: слоты `FDD A` / `FDD B` (`.img .ima`, 360K / 720K / 1.2M / 1.44M по размеру файла), write protect.
 - DIP-переключатели числа дисководов — по наличию образов (как «floppy presence» в MiSTer).
