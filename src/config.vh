@@ -28,7 +28,3 @@
 
 // MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
 `define MIDI_MPU401
-
-// The CPU of MiSTer PCXT 2026 (MCL86 of Boogermann / opengateware, rtl/cpu); without it the
-// MCL86 of 2022 (rtl/cpu/mcl86_2022, not in the .prj files)
-`define MCL86_2026

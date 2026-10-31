@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-// The flags of ADD / ADC / SUB / SBB on the MCL86 (i8088 of rtl/cpu, with OLD=1 of rtl/cpu/mcl86_2022): the program
+// The flags of ADD / ADC / SUB / SBB on the MCL86 (i8088 of rtl/cpu): the program
 // of gen_cpu_flags.py runs from F0000 and pushes the flags after every operation; the stack
 // (0000:0FFE down) is compared with the flags a real 8088 sets. The bus as the status lines give it
 // (the address at the start of a cycle, the write data at its end), no 8288, no wait states.
@@ -29,14 +29,10 @@ i8088 cpu(
 	.CORE_CLK(clk_100), .CLK(clk_cpu), .RESET(reset), .READY(1'b1), .INTR(1'b0), .NMI(1'b0),
 	.ad_out(ad_out), .dout(dout), .din(din),
 	.lock_n(), .s6_3_mux(), .s2_s0_out(status), .SEGMENT(), .biu_done(),
-`ifdef MCL86_2026
 	.cycle_accrate(1'b1), .clock_cycle_counter_division_ratio(8'd0),
 	.clock_cycle_counter_decrement_value(8'd1), .shift_read_timing(1'b0), .is8086(1'b0),
 	.fake286_flags(1'b0), .word_read_request(), .word_write_request(), .data_bus_word_out(),
 	.data_bus_word(16'h0000), .word_access_possible(1'b0));
-`else
-	.turbo_mode(1'b0));
-`endif
 
 reg [7:0] ram [0:16'hFFFF];  // 00000-0FFFF
 reg [7:0] rom [0:16'hFFFF];  // F0000-FFFFF

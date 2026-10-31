@@ -87,7 +87,7 @@ Baseline Mini G (2026-10-30, Makefile, `map -t 2`, код `main`, ~4 мин): LU
 
 ### Cleanup (2026-10-31, по просьбе пользователя)
 
-Удалены таргеты и бинарники других плат (ZXUno, ZXDos, NGo, UnoXT, ZXDos+), неиспользуемые файлы `HW/`, их `ifdef`. Структура: `ise/XC6SLX25/karabas-go` → `src/`, `HW/` → `src/rtl/` (`cpu`, `chipset` без уровней `HDL/`, `video`, `uart`, `sound`, `common`), `rtl/mcu` → `rtl/mouse`. Сборка из `src/` дала тот же `pcxt.kg3` байт в байт. Пути `HW/…` и `ise/XC6SLX25/karabas-go/…` в разделах выше — старая раскладка. Открыто: удалить старый CPU (`src/rtl/cpu/mcl86_2022`, `MCL86_2026`) после проверки нового на железе.
+Удалены таргеты и бинарники других плат (ZXUno, ZXDos, NGo, UnoXT, ZXDos+), неиспользуемые файлы `HW/`, их `ifdef`. Структура: `ise/XC6SLX25/karabas-go` → `src/`, `HW/` → `src/rtl/` (`cpu`, `chipset` без уровней `HDL/`, `video`, `uart`, `sound`, `common`), `rtl/mcu` → `rtl/mouse`. Сборка из `src/` дала тот же `pcxt.kg3` байт в байт. Пути `HW/…` и `ise/XC6SLX25/karabas-go/…` в разделах выше — старая раскладка. Новый CPU проверен на Mini G 26103109 (DOS, игры, турбо, горячий сброс; в Area 5150 заметных отличий нет), старый удалён.
 
 ## Ф4. Образы HDD
 
