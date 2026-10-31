@@ -8,7 +8,10 @@
    r * 3 + i); the tracks as an IBM System 34 track (gap 4a, IAM, gap 1, the sectors 1..SPT with
    ID and data fields, gap 3, 4E up to TRK_BYTES) at CELL clocks of 20 ns per MFM cell, the
    rotation SPEED times slower, each cell with a random jitter of JIT;
- - index pulses, track 0, write protect (wprot), STEP / DIR on the selected drive;
+ - index pulses, track 0, write protect (wprot), STEP / DIR on the selected drive: a step is
+   taken at the end of a STEP pulse of STEP_MIN_NS or more, with DIR steady DIR_SETUP_NS before
+   it (a shorter pulse is lost, as a real drive at the edge of its timing may lose it; short_steps
+   counts them);
  - the write data while the write gate is on is decoded: an ID field (a format) gives the sector
    of the next data field, else the sector whose ID passed last; the data field goes into the
    image (crc_errs counts the data fields with a wrong CRC). A track written from its index
@@ -26,7 +29,9 @@ module fdd_model #(
 	parameter integer TRK_BYTES = 3000,
 	parameter real SPEED = 1.01,
 	parameter real JIT = 0.05,
-	parameter integer CYL0 = 5
+	parameter integer CYL0 = 5,
+	parameter real STEP_MIN_NS = 3000.0,
+	parameter real DIR_SETUP_NS = 3000.0
 ) (
 	input wire [7:0] fdd_out,
 	output wire [3:0] fdd_in
@@ -48,9 +53,23 @@ integer data_writes = 0;
 integer fmt_ids = 0;
 
 integer cyl = CYL0;
-always @(posedge step)
+integer short_steps = 0;
+realtime dir_t = 0, step_t = 0;
+reg step_dir_ok = 1'b0;
+always @(dir) dir_t = $realtime;
+always @(posedge step) begin
+	step_t = $realtime;
+	step_dir_ok = ($realtime - dir_t >= DIR_SETUP_NS);
+end
+always @(negedge step)
 	if (sel) begin
-		if (dir) begin
+		if (!step_dir_ok || $realtime - step_t < STEP_MIN_NS) begin
+			if (short_steps < 3)
+				$display("%t fdd_model DS%0d: a step lost (pulse %0.0f ns, dir set %0.0f ns before)",
+					$realtime, DS, $realtime - step_t, step_t - dir_t);
+			short_steps = short_steps + 1;
+		end
+		else if (dir) begin
 			if (cyl < CYLS - 1) cyl = cyl + 1;
 		end
 		else if (cyl > 0)
