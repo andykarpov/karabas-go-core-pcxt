@@ -109,6 +109,7 @@ wire fdd_mgmt_fddn, fdd_mgmt_write, fdd_mgmt_read;
 wire [15:0] fdd_mgmt_writedata, fdd_mgmt_readdata;
 wire [1:0] fdd_request;
 wire [7:0] rtc_a, rtc_di, rtc_do;
+wire [12:0] joy_l, joy_r;
 wire rtc_cs, rtc_wr_n;
 wire romload_active, romload_wr;
 wire [31:0] romload_addr;
@@ -166,6 +167,10 @@ system sys_inst
 `endif
 `ifdef MIDI_MPU401
 	,.midi_tx(midi_tx)
+`endif
+`ifdef GAME_PORT
+	,.joy0(joy_l)
+	,.joy1(joy_r)
 `endif
 `ifdef RTC_MCU
 	,.rtc_a(rtc_a)
@@ -282,8 +287,8 @@ kg_mcu #(
 	.PS2_COMMAND(16'h0),
 	.PS2_COMMAND_WR(1'b0),
 
-	.JOY_L(),
-	.JOY_R(),
+	.JOY_L(joy_l),
+	.JOY_R(joy_r),
 	.BTNS(),
 
 	.RTC_A(rtc_a),

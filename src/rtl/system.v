@@ -72,6 +72,11 @@ module system(
 	// karabas: MIDI OUT of the MPU-401 (330h)
 	,output   wire              midi_tx
 `endif
+`ifdef GAME_PORT
+	// karabas: the two USB pads of the mcu (Sega MD2 bits) on the game port (201h)
+	,input    wire  [12:0]      joy0
+	,input    wire  [12:0]      joy1
+`endif
 	
 	/*
 	output	wire					LED,
@@ -423,6 +428,10 @@ reg splash_status = 1'b0;
 `endif
 `ifdef MIDI_MPU401
 		.midi_tx(midi_tx),
+`endif
+`ifdef GAME_PORT
+		.joy0(joy0),
+		.joy1(joy1),
 `endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),

@@ -124,6 +124,10 @@ module CHIPSET (
 `ifdef MIDI_MPU401
    output   wire              midi_tx,
 `endif
+`ifdef GAME_PORT
+   input    wire  [12:0]      joy0,
+   input    wire  [12:0]      joy1,
+`endif
    output   wire  [7:0]       xtctl,
 	output	wire	[20:0]		SRAM_ADDR,
 	inout 	wire	[7:0] 		SRAM_DATA,
@@ -334,6 +338,10 @@ module CHIPSET (
 `endif
 `ifdef MIDI_MPU401
 		.midi_tx(midi_tx),
+`endif
+`ifdef GAME_PORT
+		.joy0(joy0),
+		.joy1(joy1),
 `endif
 		.xtctl(xtctl),
 		.btn_green_n_i(btn_green_n_i),

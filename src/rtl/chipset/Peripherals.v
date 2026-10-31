@@ -48,11 +48,11 @@ module PERIPHERALS (
 	input		wire					kb_scancode_upd,	
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
-//	input		wire	[4:0]			joy_opts,
-//	input		wire	[31:0]		joy0,
-//	input		wire	[31:0]		joy1,
-//	input		wire	[15:0]		joya0,
-//	input		wire	[15:0]		joya1,
+`ifdef GAME_PORT
+	// karabas: two joysticks from the USB pads of the mcu (Sega MD2 bits), game_port.v
+	input		wire	[12:0]		joy0,
+	input		wire	[12:0]		joy1,
+`endif
 	input		wire					clk_en_opl2,
 	output	wire	[15:0]		jtopl2_snd_e,
 	input		wire					adlibhide,
@@ -169,7 +169,10 @@ module PERIPHERALS (
 	wire timer_chip_select_n = iorq && chip_select_n[2];
 	wire ppi_chip_select_n = iorq && chip_select_n[3];
 	assign dma_page_chip_select_n = iorq && chip_select_n[4];
-//	wire joystick_select = (iorq && ~address_enable_n) && (address[15:3] == (16'h0200 >> 3));
+`ifdef GAME_PORT
+	// without iorq, which ends with the strobe (the write is taken at its end)
+	wire joystick_select = ~address_enable_n && (address[15:3] == (16'h0200 >> 3));
+`endif
 	wire uart_cs = ~address_enable_n && ({address[15:3], 3'd0} == 16'h03f8);
 	wire opl_chip_select_n = ~((iorq && ~address_enable_n) && (address[15:1] == (16'h0388 >> 1)));
 	wire cga_chip_select_n = ~((~iorq && ~address_enable_n) && (address[19:15] == 5'b10111));
@@ -963,21 +966,17 @@ module PERIPHERALS (
 			fdd_readdata <= fdd_dma_readdata;
 `endif
 	 
-	/*
+`ifdef GAME_PORT
 	wire [7:0] joy_data;
-	tandy_pcjr_joy joysticks(
+	game_port joysticks(
 		.clk(clock),
 		.reset(reset),
-		.en(joystick_select && ~io_write_n),
-		.turbo_mode(turbo_mode),
-		.joy_opts(joy_opts),
+		.start(io_write_n & ~prev_io_write_n & joystick_select),
 		.joy0(joy0),
 		.joy1(joy1),
-		.joya0(joya0),
-		.joya1(joya1),
 		.d_out(joy_data)
 	);
-	*/
+`endif
 	always @(posedge clock)
 		if (~interrupt_acknowledge_n) begin
 			data_bus_out_from_chipset <= 1'b1;
@@ -1072,12 +1071,12 @@ module PERIPHERALS (
           data_bus_out <= uart_readdata;
       end
 `endif
-		/*
+`ifdef GAME_PORT
 		else if (joystick_select && ~io_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= joy_data;
 		end
-		*/
+`endif
 		else begin
 			data_bus_out_from_chipset <= 1'b0;
 			data_bus_out <= 8'b00000000;

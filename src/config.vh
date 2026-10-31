@@ -28,3 +28,6 @@
 
 // MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
 `define MIDI_MPU401
+
+// The game port (201h): two joysticks from the USB pads of the mcu
+`define GAME_PORT
