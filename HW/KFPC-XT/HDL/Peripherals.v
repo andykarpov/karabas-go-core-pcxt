@@ -807,6 +807,23 @@ module PERIPHERALS (
 	);
 
 `ifndef MEM_512KB
+`ifdef KARABASGO
+	// karabas: the byte of ram.v is good only when the SRAM had the address of ram.v for a whole
+	// clock: CGA_VRAM_ENABLE_ff (falling edge) gives the SRAM to the CGA, and after it gives it
+	// back the data has half a clock. The CPU waits for the CGA (cga_vram_rdy), but the 8237
+	// looks at READY once per cycle: a DMA read of the memory (a floppy write) could end with a
+	// byte of the CGA. The data bus gets the last good byte.
+	reg cga_vram_busy_d = 1'b0;
+	reg ram_dout_ok = 1'b0;
+	reg [7:0] ram_dout_hold = 8'h00;
+	always @(posedge clock) begin
+		cga_vram_busy_d <= CGA_VRAM_ENABLE_ff;
+		ram_dout_ok <= ~CGA_VRAM_ENABLE_ff & ~cga_vram_busy_d;
+		if (ram_dout_ok)
+			ram_dout_hold <= ram_cpu_dout;
+	end
+	wire [7:0] ram_cpu_dout_good = ram_dout_ok ? ram_cpu_dout : ram_dout_hold;
+`endif
 	assign SRAM_WE_n = (CGA_VRAM_ENABLE_ff ? 1'b1 : SRAM_WE_n_A);
 	assign SRAM_ADDR = (CGA_VRAM_ENABLE_ff ? (tandy_16_gfx ? tandy_crtc_ff : cga_crtc_ff) : SRAM_ADDR_A);
 `endif
@@ -1163,7 +1180,11 @@ module PERIPHERALS (
 `else
 		else if ((~ram_select_n || ~bios_select_n) && ~memory_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
+`ifdef KARABASGO
+			data_bus_out <= ram_cpu_dout_good;
+`else
 			data_bus_out <= ram_cpu_dout;
+`endif
 		end
 		else if (ems_oe && ~io_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
