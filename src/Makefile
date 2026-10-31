@@ -29,7 +29,7 @@ JSON_mini = core_mini.json
 JSON_minig = core_minig.json
 
 # map / par options (as the .xise projects had them, but cost table 2)
-MAP_T_go = 2
+MAP_T_go = 1
 MAP_T_mini = 2
 MAP_T_minig = 2
 MAP_OPTS = -logic_opt off -ol high -xt 3 -register_duplication off -r 4 -global_opt off -mt off -ir off -pr off -lc off -power off

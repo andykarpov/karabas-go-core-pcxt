@@ -4,8 +4,9 @@
 // as in tb_fdd.v), pcxt_disks (PHYS_FDD 1: pcxt_fdd + pcxt_fdd_phys, the times of the phys made
 // short), a drive model (fdd_model.v) on DS1, mapped to drive A by CMD_IMG_PHYS (slot 2, DS1).
 // Checks the geometry in floppy.v, a read of two sectors, a write and its read back, a format of
-// a track and a read of it, a sector on an unformatted track (ST0 40h, ST1 04h), the write
-// protect, a mount of an image over the drive. Run: sim/run_fdd_phys_sim.sh (after tb_fdd_phys).
+// a track and a read of it, a sector on an unformatted track (ST0 40h, ST1 04h), a format with
+// other sectors per track (taken, the new geometry), the write protect, a mount of an image over
+// the drive. Run: sim/run_fdd_phys_sim.sh (after tb_fdd_phys).
 
 module tb_fdd_int;
 
@@ -202,6 +203,7 @@ task fdc_rw(input wr, input drive, input [7:0] c, input [7:0] h, input [7:0] r, 
 endtask
 
 integer i, errs0;
+reg [7:0] dbg_lo, dbg_hi;
 initial begin
 	if ($test$plusargs("vcd")) begin
 		$dumpfile("build/tb_fdd_int.vcd");
@@ -226,6 +228,19 @@ initial begin
 	check("A sectors", fdc.media_sector_count[0], 960);
 	$display("%0t: A geometry %0d/%0d/%0d, %0d sectors", $time, fdc.media_cylinders[0], fdc.media_heads[0],
 		fdc.media_sectors_per_track[0], fdc.media_sector_count[0]);
+
+	// the diagnostics at 3F0h / 3F1h: page 4 (drive A: present, two heads, 500 kbit/s, 6 sectors),
+	// page 0 (IDs with a good CRC seen by the probe)
+	repeat (40) @(posedge clk);
+	fdc_wr(3'd3, 8'd4);
+	fdc_rd(3'd0); dbg_lo = rbyte;
+	fdc_rd(3'd1); dbg_hi = rbyte;
+	check("diag page 4", {dbg_hi, dbg_lo}, 16'h6006);
+	fdc_wr(3'd3, 8'd0);
+	fdc_rd(3'd0); dbg_lo = rbyte;
+	fdc_rd(3'd1); dbg_hi = rbyte;
+	$display("%0t: diagnostics: page 4 %h, page 0: %0d good IDs, %0d bad", $time, 16'h6006, dbg_lo, dbg_hi);
+	if (dbg_lo == 8'd0) begin $display("ERROR no good IDs in the diagnostics"); errors = errors + 1; end
 
 	// DOR: motor A on, DMA; specify
 	fdc_wr(3'd2, 8'h1C);
@@ -273,6 +288,23 @@ initial begin
 	fdc_rw(1'b0, 1'b0, 8'd9, 8'd0, 8'd4, 8'd4, 512);
 	check("formatted st0", res[0] & 8'hC0, 8'h00);
 	check("formatted byte", mem[300], 8'hF6);
+
+	// a format of C 10 H 1 with 12 sectors (the disk has 6): floppy.v takes it, its geometry
+	// becomes 12 sectors (the probe below makes it 6 again)
+	for (i = 0; i < 12; i = i + 1) begin
+		mem[i*4] = 8'd10; mem[i*4+1] = 8'd1; mem[i*4+2] = i + 1; mem[i*4+3] = 8'd2;
+	end
+	dma_n = 0; dma_count = 48; dma_to_fdc = 1'b1; dma_on = 1'b1;
+	fdc_cmd(8'h4D); fdc_cmd(8'h04); fdc_cmd(8'h02); fdc_cmd(8'd12); fdc_cmd(8'h54); fdc_cmd(8'hE5);
+	wait_irq;
+	fdc_result(7);
+	dma_on = 1'b0;
+	check("format 12 st0", res[0] & 8'hC0, 8'h00);
+	check("format 12 IDs", drv.fmt_ids, 12);
+	check("format 12 spt", fdc.media_sectors_per_track[0], 12);
+	check("format 12 sectors", fdc.media_sector_count[0], 1920);
+	$display("%0t: format C10 H1 with 12 sectors: ST0 %h, %0d IDs, spt %0d, %0d sectors", $time, res[0],
+		drv.fmt_ids, fdc.media_sectors_per_track[0], fdc.media_sector_count[0]);
 
 	// write protected: probe again (the mcu maps the slot again)
 	drv.wprot = 1'b1;
