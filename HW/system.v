@@ -83,6 +83,14 @@ module system(
 	,output   wire  [15:0]      fdd_mgmt_readdata
 	,output   wire  [1:0]       fdd_request
 `endif
+`ifdef RTC_MCU
+	// karabas: the clock registers of the mcu (kg_mcu_rtc) at ports 2C0h / 2C1h
+	,output   wire  [7:0]       rtc_a
+	,output   wire  [7:0]       rtc_di
+	,input    wire  [7:0]       rtc_do
+	,output   wire              rtc_cs
+	,output   wire              rtc_wr_n
+`endif
 	
 	/*
 	output	wire					LED,
@@ -469,6 +477,13 @@ reg splash_status = 1'b0;
 		.fdd_mgmt_read(fdd_mgmt_read),
 		.fdd_mgmt_readdata(fdd_mgmt_readdata),
 		.fdd_request(fdd_request),
+`endif
+`ifdef RTC_MCU
+		.rtc_a(rtc_a),
+		.rtc_di(rtc_di),
+		.rtc_do(rtc_do),
+		.rtc_cs(rtc_cs),
+		.rtc_wr_n(rtc_wr_n),
 `endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),

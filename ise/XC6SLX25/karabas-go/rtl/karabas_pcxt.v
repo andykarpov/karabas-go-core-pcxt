@@ -91,6 +91,8 @@ wire [3:0] fdd_mgmt_address;
 wire fdd_mgmt_fddn, fdd_mgmt_write, fdd_mgmt_read;
 wire [15:0] fdd_mgmt_writedata, fdd_mgmt_readdata;
 wire [1:0] fdd_request;
+wire [7:0] rtc_a, rtc_di, rtc_do;
+wire rtc_cs, rtc_wr_n;
 wire romload_active, romload_wr;
 wire [31:0] romload_addr;
 wire [7:0] romload_data;
@@ -149,10 +151,23 @@ system sys_inst
 	,.fdd_mgmt_readdata(fdd_mgmt_readdata)
 	,.fdd_request(fdd_request)
 `endif
+`ifdef RTC_MCU
+	,.rtc_a(rtc_a)
+	,.rtc_di(rtc_di)
+	,.rtc_do(rtc_do)
+	,.rtc_cs(rtc_cs)
+	,.rtc_wr_n(rtc_wr_n)
+`endif
 );
 `ifndef FLOPPY
 assign fdd_mgmt_readdata = 16'h0000;
 assign fdd_request = 2'b00;
+`endif
+`ifndef RTC_MCU
+assign rtc_a = 8'h00;
+assign rtc_di = 8'h00;
+assign rtc_cs = 1'b0;
+assign rtc_wr_n = 1'b1;
 `endif
 
 `ifdef PHYSICAL_IDE
@@ -214,7 +229,11 @@ wire img_q_ack;
 kg_mcu #(
 	.BURST_MAX_MHZ(BURST_MAX_MHZ),
 	.CS_FILTER(3),
+`ifdef RTC_MCU
+	.ENABLE_RTC(1),
+`else
 	.ENABLE_RTC(0),
+`endif
 	.ENABLE_UART(0),
 	.ENABLE_MATRIX(1),
 	.ENABLE_DEBUG(0),
@@ -257,11 +276,11 @@ kg_mcu #(
 	.JOY_R(),
 	.BTNS(),
 
-	.RTC_A(8'h0),
-	.RTC_DI(8'h0),
-	.RTC_DO(),
-	.RTC_CS(1'b0),
-	.RTC_WR_N(1'b1),
+	.RTC_A(rtc_a),
+	.RTC_DI(rtc_di),
+	.RTC_DO(rtc_do),
+	.RTC_CS(rtc_cs),
+	.RTC_WR_N(rtc_wr_n),
 
 	.UART_RX_DATA(),
 	.UART_RX_IDX(),

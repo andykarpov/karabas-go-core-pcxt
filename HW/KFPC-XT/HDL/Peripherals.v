@@ -116,6 +116,15 @@ module PERIPHERALS (
 	output   wire  [15:0]      fdd_mgmt_readdata,
 	output   wire  [1:0]       fdd_request,
 `endif
+`ifdef RTC_MCU
+	// karabas: the clock of the mcu (kg_mcu_rtc, MC146818 registers) at ports 2C0h (index) / 2C1h
+	// (data), as the RTC of MiSTer PCXT (4806f99, fd00d43; GET_RTC.EXE sets the DOS time from it)
+	output   wire  [7:0]       rtc_a,
+	output   wire  [7:0]       rtc_di,
+	input    wire  [7:0]       rtc_do,
+	output   wire              rtc_cs,
+	output   wire              rtc_wr_n,
+`endif
 `ifdef ROM_LOADER
 	// karabas: the rom loader of the mcu (in the clock of the chipset)
 	input    wire              rom_wr,
@@ -525,6 +534,32 @@ module PERIPHERALS (
 		prev_io_read_n <= io_read_n;
 		prev_io_write_n <= io_write_n;
 	end
+`ifdef RTC_MCU
+	// the index and a data write at the end of the write strobe (the select without iorq, which
+	// ends with the strobe); bit 7 of the index is the NMI mask of an AT, not a register
+	wire rtc_chip_select_n = ~(~address_enable_n && (address[15:1] == (16'h02C0 >> 1)));
+	reg [7:0] rtc_index = 8'h00;
+	reg [7:0] rtc_wdata = 8'h00;
+	reg rtc_wr = 1'b0;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			rtc_wdata <= internal_data_bus;
+		rtc_wr <= 1'b0;
+		if (io_write_n & ~prev_io_write_n & ~rtc_chip_select_n) begin
+			if (~address[0])
+				rtc_index <= {1'b0, rtc_wdata[6:0]};
+			else
+				rtc_wr <= 1'b1;
+		end
+	end
+	assign rtc_a = rtc_index;
+	assign rtc_di = rtc_wdata;
+	assign rtc_cs = rtc_wr;
+	assign rtc_wr_n = ~rtc_wr;
+	// register B: 24 hours, BCD (the firmware sends BCD without an EEPROM bank, eeprom_bank 255,
+	// but register B then reads FFh: binary, all interrupts on)
+	wire [7:0] rtc_readdata = (rtc_index == 8'h0B) ? 8'h02 : rtc_do;
+`endif
 	reg [7:0] keycode_ff;
 	always @(posedge clock or posedge reset)
 		if (reset) begin
@@ -1231,6 +1266,12 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= xt2ide0_data_bus_out;
 		end
+`ifdef RTC_MCU
+		else if ((~rtc_chip_select_n) && (~io_read_n)) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= address[0] ? rtc_readdata : rtc_index;
+		end
+`endif
 `ifdef FLOPPY
 		else if ((~floppy0_chip_select_n || fdd_dma_read) && (~io_read_n)) begin
 			data_bus_out_from_chipset <= 1'b1;

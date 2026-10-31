@@ -69,3 +69,5 @@
 // the floppy controller of MiSTer PCXT (HW/common/floppy.v), its disks from the file mounter
 `define FLOPPY
 `define FDD_CLOCK_RATE 28'd50000000 // the clock of the chipset
+// karabas: the clock of the mcu at ports 2C0h / 2C1h (MC146818 registers; GET_RTC.EXE in hdd/)
+`define RTC_MCU
