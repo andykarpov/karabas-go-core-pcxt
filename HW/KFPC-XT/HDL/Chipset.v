@@ -143,6 +143,9 @@ module CHIPSET (
    output   wire              rtc_cs,
    output   wire              rtc_wr_n,
 `endif
+`ifdef MIDI_MPU401
+   output   wire              midi_tx,
+`endif
    output   wire  [7:0]       xtctl,
 	output	wire	[20:0]		SRAM_ADDR,
 	inout 	wire	[7:0] 		SRAM_DATA,
@@ -372,6 +375,9 @@ module CHIPSET (
 		.rtc_do(rtc_do),
 		.rtc_cs(rtc_cs),
 		.rtc_wr_n(rtc_wr_n),
+`endif
+`ifdef MIDI_MPU401
+		.midi_tx(midi_tx),
 `endif
 		.xtctl(xtctl),
 		.btn_green_n_i(btn_green_n_i),

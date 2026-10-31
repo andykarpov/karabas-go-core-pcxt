@@ -147,9 +147,8 @@ assign FLASH_WP_N = 1'b1;
 assign FLASH_HOLD_N = 1'b1;
 assign FLASH_SCK = 1'b1;
 assign FLASH_DI = 1'b1;
-assign MIDI_TX = 1'b1;
-assign MIDI_CLK = 1'b0;
 assign MIDI_RESET_N = 1'b1;
+midi_clk midi_clk_inst(.clk_50(clk_50), .midi_clk(MIDI_CLK));
 assign ESP_RESET_N = 1'bZ;
 assign ESP_BOOT_N = 1'bZ;
 assign FT_RESET = 1'b1;
@@ -223,7 +222,8 @@ karabas_pcxt #(.BURST_MAX_MHZ(0)) pcxt(
 	.audio_l(audio_l),
 	.audio_r(audio_r),
 
-	.kb_reset(kb_reset)
+	.kb_reset(kb_reset),
+	.midi_tx(MIDI_TX)
 );
 
 //---------- HDMI ------------

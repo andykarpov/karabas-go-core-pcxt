@@ -91,6 +91,10 @@ module system(
 	,output   wire              rtc_cs
 	,output   wire              rtc_wr_n
 `endif
+`ifdef MIDI_MPU401
+	// karabas: MIDI OUT of the MPU-401 (330h)
+	,output   wire              midi_tx
+`endif
 	
 	/*
 	output	wire					LED,
@@ -484,6 +488,9 @@ reg splash_status = 1'b0;
 		.rtc_do(rtc_do),
 		.rtc_cs(rtc_cs),
 		.rtc_wr_n(rtc_wr_n),
+`endif
+`ifdef MIDI_MPU401
+		.midi_tx(midi_tx),
 `endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),

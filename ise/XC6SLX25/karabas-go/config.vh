@@ -71,3 +71,5 @@
 `define FDD_CLOCK_RATE 28'd50000000 // the clock of the chipset
 // karabas: the clock of the mcu at ports 2C0h / 2C1h (MC146818 registers; GET_RTC.EXE in hdd/)
 `define RTC_MCU
+// karabas: MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
+`define MIDI_MPU401

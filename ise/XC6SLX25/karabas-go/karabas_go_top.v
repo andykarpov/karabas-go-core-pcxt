@@ -31,6 +31,11 @@
    input wire CLK_50MHZ,
 
 	//---------------------------
+	output wire MIDI_TX,
+	output wire MIDI_CLK,
+	output wire MIDI_RESET_N,
+
+	//---------------------------
 	inout wire UART_RX,
 	inout wire UART_TX,
 	inout wire UART_CTS,
@@ -216,8 +221,14 @@ karabas_pcxt #(.BURST_MAX_MHZ(0)) pcxt(
 	.audio_l(audio_l),
 	.audio_r(audio_r),
 
-	.kb_reset()
+	.kb_reset(),
+	.midi_tx(MIDI_TX)
 );
+
+//---------- MIDI ------------
+
+assign MIDI_RESET_N = 1'b1;
+midi_clk midi_clk_inst(.clk_50(clk_50), .midi_clk(MIDI_CLK));
 
 //---------- VGA ------------
 

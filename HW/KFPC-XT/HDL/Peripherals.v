@@ -125,6 +125,10 @@ module PERIPHERALS (
 	output   wire              rtc_cs,
 	output   wire              rtc_wr_n,
 `endif
+`ifdef MIDI_MPU401
+	// karabas: MIDI OUT of an MPU-401 in UART mode at ports 330h / 331h (mpu401_tx)
+	output   wire              midi_tx,
+`endif
 `ifdef ROM_LOADER
 	// karabas: the rom loader of the mcu (in the clock of the chipset)
 	input    wire              rom_wr,
@@ -559,6 +563,31 @@ module PERIPHERALS (
 	// register B: 24 hours, BCD (the firmware sends BCD without an EEPROM bank, eeprom_bank 255,
 	// but register B then reads FFh: binary, all interrupts on)
 	wire [7:0] rtc_readdata = (rtc_index == 8'h0B) ? 8'h02 : rtc_do;
+`endif
+`ifdef MIDI_MPU401
+	// a write at the end of its strobe, a read latched at its start (the read clears the
+	// acknowledge, the CPU takes the byte later in the cycle)
+	wire mpu401_chip_select_n = ~(~address_enable_n && (address[15:1] == (16'h0330 >> 1)));
+	reg [7:0] mpu401_wdata = 8'h00;
+	reg [7:0] mpu401_readdata = 8'h00;
+	wire [7:0] mpu401_readdata_1;
+	wire mpu401_read = ~io_read_n & prev_io_read_n & ~mpu401_chip_select_n;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			mpu401_wdata <= internal_data_bus;
+		if (mpu401_read)
+			mpu401_readdata <= mpu401_readdata_1;
+	end
+	mpu401_tx mpu401_inst(
+		.clk(clock),
+		.reset(reset),
+		.address(address[0]),
+		.write(io_write_n & ~prev_io_write_n & ~mpu401_chip_select_n),
+		.writedata(mpu401_wdata),
+		.read(mpu401_read),
+		.readdata(mpu401_readdata_1),
+		.midi_tx(midi_tx)
+	);
 `endif
 	reg [7:0] keycode_ff;
 	always @(posedge clock or posedge reset)
@@ -1266,6 +1295,12 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= xt2ide0_data_bus_out;
 		end
+`ifdef MIDI_MPU401
+		else if ((~mpu401_chip_select_n) && (~io_read_n)) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= mpu401_readdata;
+		end
+`endif
 `ifdef RTC_MCU
 		else if ((~rtc_chip_select_n) && (~io_read_n)) begin
 			data_bus_out_from_chipset <= 1'b1;

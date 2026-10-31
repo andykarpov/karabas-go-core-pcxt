@@ -69,7 +69,9 @@ module karabas_pcxt #(
 	output wire [15:0] audio_l,
 	output wire [15:0] audio_r,
 
-	output wire kb_reset
+	output wire kb_reset,
+
+	output wire midi_tx         // MPU-401 at 330h
 );
 
 `include "config.vh"
@@ -151,6 +153,9 @@ system sys_inst
 	,.fdd_mgmt_readdata(fdd_mgmt_readdata)
 	,.fdd_request(fdd_request)
 `endif
+`ifdef MIDI_MPU401
+	,.midi_tx(midi_tx)
+`endif
 `ifdef RTC_MCU
 	,.rtc_a(rtc_a)
 	,.rtc_di(rtc_di)
@@ -162,6 +167,9 @@ system sys_inst
 `ifndef FLOPPY
 assign fdd_mgmt_readdata = 16'h0000;
 assign fdd_request = 2'b00;
+`endif
+`ifndef MIDI_MPU401
+assign midi_tx = 1'b1;
 `endif
 `ifndef RTC_MCU
 assign rtc_a = 8'h00;
