@@ -363,6 +363,7 @@ module PERIPHERALS (
 	);
 	wire ps2_send_clock;
 	wire keybord_irq;
+	wire [7:0] keycode_buf;
 	wire [7:0] keycode;
 	wire [7:0] tandy_keycode;
 	wire prev_ps2_reset;
@@ -384,7 +385,7 @@ module PERIPHERALS (
 		.kb_scancode_upd(kb_scancode_upd),
 		.reset_keybord(~prev_ps2_reset_n & ps2_reset_n),
 		.irq(keybord_irq),
-		.keycode(keycode),
+		.keycode(keycode_buf),
 		.clear_keycode(clear_keycode)
 	);
 `else
@@ -396,7 +397,7 @@ module PERIPHERALS (
 		.reset_keybord(~prev_ps2_reset_n & ps2_reset_n),
 		.device_data(ps2_data),
 		.irq(keybord_irq),
-		.keycode(keycode),
+		.keycode(keycode_buf),
 		.clear_keycode(clear_keycode),
 		.swap_video(swap_video),
 		.turbo_mode(turbo_mode),		
@@ -415,6 +416,42 @@ module PERIPHERALS (
 		.send_request(1'b0),
 		.send_data(8'hff)
 	);
+`endif
+
+	// MiSTer 7a9c8b1: 80h while the BIOS holds the keyboard in reset (port B bit 6), no slow keyboard
+	// after a warm boot
+	assign keycode = ps2_reset_n ? keycode_buf : 8'h80;
+
+`ifdef SOUND_ADLIB
+	// MiSTer 864d32c: Ctrl+Alt+Del resets the OPL for 100 us (no notes left playing after a warm boot)
+	reg prev_keybord_irq;
+	reg ctrl_down;
+	reg alt_down;
+	reg [15:0] opl_reset_cnt;
+	wire opl_warm_reset = (opl_reset_cnt != 16'd0);
+	always @(posedge clock or posedge reset)
+		if (reset) begin
+			prev_keybord_irq <= 1'b0;
+			ctrl_down <= 1'b0;
+			alt_down <= 1'b0;
+			opl_reset_cnt <= 16'd0;
+		end
+		else begin
+			prev_keybord_irq <= keybord_irq;
+			if (opl_reset_cnt != 16'd0)
+				opl_reset_cnt <= opl_reset_cnt - 16'd1;
+			if (keybord_irq && ~prev_keybord_irq) begin
+				case (keycode)
+					8'h1D: ctrl_down <= 1'b1;
+					8'h9D: ctrl_down <= 1'b0;
+					8'h38: alt_down <= 1'b1;
+					8'hB8: alt_down <= 1'b0;
+					default: ;
+				endcase
+				if (keycode == 8'h53 && ctrl_down && alt_down)
+					opl_reset_cnt <= 16'd5000;
+			end
+		end
 `endif
 
 `ifndef MEM_512KB
@@ -440,7 +477,7 @@ module PERIPHERALS (
 	wire [7:0] opl32_data;
 	assign opl32_data = (adlibhide ? 8'hff : jtopl2_dout);
 	jtopl jtopl2_inst(
-		.rst(reset),
+		.rst(reset | opl_warm_reset),
 		.clk(clock),
 		.cen(clk_en_opl2),
 		.din(internal_data_bus),
