@@ -23,7 +23,14 @@
 
 `define BIOS_WRITABLE = 1'b1;   // 0=No, 1=Yes
 
-`define ROM_BIOS "pcxt31.hex" // 8Kb BIOS
+// `define ROM_BIOS "pcxt31.hex" // 8Kb BIOS (Turbo XT BIOS 3.1: 360K floppies only)
+// karabas: Sergey Kiselev's XT BIOS 1.0.0a of MiSTer PCXT (SW/ROMs/pcxt_xtsergey.rom, FC000-FFFFF):
+// 720K / 1.44M floppies (two 1.44M drives, no CMOS)
+`define BIOS_16KB
+// karabas: the BIOS and the XTIDE BIOS also from the roms of core*.json (the mcu rom loader:
+// 0000-3FFF the 16 KB BIOS, an 8 KB one at 2000; 4000-7FFF the XTIDE BIOS); needs BIOS_16KB
+`define ROM_LOADER
+`define ROM_BIOS "xtsergey.hex" // 16Kb BIOS
 `define XTIDE_BIOS "xtide.hex" // Up to 16Kb
 
 // Splash Screen
@@ -57,3 +64,6 @@
 `define EMULATE_PS2
 `define AUDIO_DAC
 `define PHYSICAL_IDE
+// the floppy controller of MiSTer PCXT (HW/common/floppy.v), its disks from the file mounter
+`define FLOPPY
+`define FDD_CLOCK_RATE 28'd50000000 // the clock of the chipset

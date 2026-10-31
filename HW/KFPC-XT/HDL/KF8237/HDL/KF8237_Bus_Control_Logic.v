@@ -1,32 +1,57 @@
 `default_nettype none
-
+// karabas: sv2v of MiSTer PCXT rtl/KFPC-XT/HDL/KF8237/HDL/KF8237_Bus_Control_Logic.sv at baaac36 (2022-10-29): the DMA TC fix
+// (fc23647: TC kept through wait states, it was lost with the short dma_ready of Ready.v), the
+// register write next to a DACK (49b97f9), "Improved bus speed" (baaac36)
 module KF8237_Bus_Control_Logic (
-	input		wire					clock,
-	input		wire					reset,
-	input		wire					chip_select_n,
-	input		wire					io_read_n_in,
-	input		wire					io_write_n_in,
-	input		wire	[3:0]			address_in,
-	input		wire	[7:0]			data_bus_in,
-	input		wire					lock_bus_control,
-	output	reg	[7:0]			internal_data_bus,
-	output	wire					write_command_register,
-	output	wire					write_mode_register,
-	output	wire					write_request_register,
-	output	wire					set_or_reset_mask_register,
-	output	wire					write_mask_register,
-	output	wire	[3:0]			write_base_and_current_address,
-	output	wire	[3:0]			write_base_and_current_word_count,
-	output	wire					clear_byte_pointer,
-	output	wire					set_byte_pointer,
-	output	wire					master_clear,
-	output	wire					clear_mask_register,
-	output	wire					read_temporary_register,
-	output	wire					read_status_register,
-	output	wire	[3:0]			read_current_address,
-	output	wire	[3:0]			read_current_word_count
-	);
-
+	clock,
+	reset,
+	chip_select_n,
+	io_read_n_in,
+	io_write_n_in,
+	address_in,
+	data_bus_in,
+	lock_bus_control,
+	internal_data_bus,
+	write_command_register,
+	write_mode_register,
+	write_request_register,
+	set_or_reset_mask_register,
+	write_mask_register,
+	write_base_and_current_address,
+	write_base_and_current_word_count,
+	clear_byte_pointer,
+	set_byte_pointer,
+	master_clear,
+	clear_mask_register,
+	read_temporary_register,
+	read_status_register,
+	read_current_address,
+	read_current_word_count
+);
+	input wire clock;
+	input wire reset;
+	input wire chip_select_n;
+	input wire io_read_n_in;
+	input wire io_write_n_in;
+	input wire [3:0] address_in;
+	input wire [7:0] data_bus_in;
+	input wire lock_bus_control;
+	output reg [7:0] internal_data_bus;
+	output wire write_command_register;
+	output wire write_mode_register;
+	output wire write_request_register;
+	output wire set_or_reset_mask_register;
+	output wire write_mask_register;
+	output wire [3:0] write_base_and_current_address;
+	output wire [3:0] write_base_and_current_word_count;
+	output wire clear_byte_pointer;
+	output wire set_byte_pointer;
+	output wire master_clear;
+	output wire clear_mask_register;
+	output wire read_temporary_register;
+	output wire read_status_register;
+	output wire [3:0] read_current_address;
+	output wire [3:0] read_current_word_count;
 	reg prev_write_enable_n;
 	wire write_flag;
 	reg [3:0] stable_address;
@@ -44,8 +69,8 @@ module KF8237_Bus_Control_Logic (
 		else if (chip_select_n)
 			prev_write_enable_n <= 1'b1;
 		else
-			prev_write_enable_n <= io_write_n_in;
-	assign write_flag = (~prev_write_enable_n & io_write_n_in) & ~lock_bus_control;
+			prev_write_enable_n <= io_write_n_in | lock_bus_control;
+	assign write_flag = ~prev_write_enable_n & io_write_n_in;
 	always @(posedge clock or posedge reset)
 		if (reset)
 			stable_address <= 4'b0000;

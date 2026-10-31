@@ -1,29 +1,52 @@
 `default_nettype none
-
+// karabas: sv2v of MiSTer PCXT rtl/KFPC-XT/HDL/KF8237/HDL/KF8237_Address_And_Count_Registers.sv at baaac36 (2022-10-29): the DMA TC fix
+// (fc23647: TC kept through wait states, it was lost with the short dma_ready of Ready.v), the
+// register write next to a DACK (49b97f9), "Improved bus speed" (baaac36)
 module KF8237_Address_And_Count_Registers (
-	input		wire					clock,
-	input		wire					cpu_clock_posedge,
-	input		wire					cpu_clock_negedge,
-	input		wire					reset,
-	input		wire	[7:0]			internal_data_bus,
-	output	reg	[7:0]			read_address_or_count,
-	input		wire	[3:0]			write_base_and_current_address,
-	input		wire	[3:0]			write_base_and_current_word_count,
-	input		wire					clear_byte_pointer,
-	input		wire					set_byte_pointer,
-	input		wire					master_clear,
-	input		wire	[3:0]			read_current_address,
-	input		wire	[3:0]			read_current_word_count,
-	input		wire	[3:0]			transfer_register_select,
-	input		wire					initialize_current_register,
-	input		wire					address_hold_config,
-	input		wire					decrement_address_config,
-	input		wire					next_word,
-	output	wire					underflow,
-	output	wire					update_high_address,
-	output	reg	[15:0]		transfer_address
-	);
-
+	clock,
+	cpu_clock_posedge,
+	cpu_clock_negedge,
+	reset,
+	internal_data_bus,
+	read_address_or_count,
+	write_base_and_current_address,
+	write_base_and_current_word_count,
+	clear_byte_pointer,
+	set_byte_pointer,
+	master_clear,
+	read_current_address,
+	read_current_word_count,
+	transfer_register_select,
+	initialize_current_register,
+	address_hold_config,
+	decrement_address_config,
+	next_word,
+	underflow,
+	update_high_address,
+	transfer_address
+);
+	reg _sv2v_0;
+	input wire clock;
+	input wire cpu_clock_posedge;
+	input wire cpu_clock_negedge;
+	input wire reset;
+	input wire [7:0] internal_data_bus;
+	output reg [7:0] read_address_or_count;
+	input wire [3:0] write_base_and_current_address;
+	input wire [3:0] write_base_and_current_word_count;
+	input wire clear_byte_pointer;
+	input wire set_byte_pointer;
+	input wire master_clear;
+	input wire [3:0] read_current_address;
+	input wire [3:0] read_current_word_count;
+	input wire [3:0] transfer_register_select;
+	input wire initialize_current_register;
+	input wire address_hold_config;
+	input wire decrement_address_config;
+	input wire next_word;
+	output wire underflow;
+	output wire update_high_address;
+	output reg [15:0] transfer_address;
 	reg [3:0] prev_read_current_address;
 	reg [3:0] prev_read_current_word_count;
 	reg byte_pointer;
@@ -43,7 +66,7 @@ module KF8237_Address_And_Count_Registers (
 			prev_read_current_word_count <= 0;
 		else
 			prev_read_current_word_count <= read_current_word_count;
-	wire update_byte_pointer = (((0 != write_base_and_current_address) || (0 != write_base_and_current_word_count)) || ((0 != prev_read_current_address) && (prev_read_current_address != read_current_address))) || ((0 != prev_read_current_word_count) && (prev_read_current_word_count != read_current_word_count));
+	wire update_byte_pointer = (((0 != write_base_and_current_address) || (0 != write_base_and_current_word_count)) || ((0 != prev_read_current_address) && (0 == read_current_address))) || ((0 != prev_read_current_word_count) && (0 == read_current_word_count));
 	always @(posedge clock or posedge reset)
 		if (reset)
 			byte_pointer <= 1'b0;
@@ -59,9 +82,10 @@ module KF8237_Address_And_Count_Registers (
 		end
 		else
 			byte_pointer <= byte_pointer;
-	genvar dma_ch_i;
+	genvar _gv_dma_ch_i_1;
 	generate
-		for (dma_ch_i = 0; dma_ch_i < 4; dma_ch_i = dma_ch_i + 1) begin : ADDRESS_AND_COUNT_REGISTERS
+		for (_gv_dma_ch_i_1 = 0; _gv_dma_ch_i_1 < 4; _gv_dma_ch_i_1 = _gv_dma_ch_i_1 + 1) begin : ADDRESS_AND_COUNT_REGISTERS
+			localparam dma_ch_i = _gv_dma_ch_i_1;
 			always @(posedge clock or posedge reset)
 				if (reset)
 					base_address[dma_ch_i] <= 16'h0000;
@@ -139,22 +163,24 @@ module KF8237_Address_And_Count_Registers (
 	endfunction
 	wire [1:0] dma_select = KF8237_Common_Package_bit2num(transfer_register_select);
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		temporary_address = current_address[dma_select];
-		if (next_word)
-			if (address_hold_config)
-				temporary_address = temporary_address;
-			else if (decrement_address_config)
-				temporary_address = temporary_address - 16'h0001;
-			else
-				temporary_address = temporary_address + 16'h0001;
+		if (address_hold_config)
+			temporary_address = temporary_address;
+		else if (decrement_address_config)
+			temporary_address = temporary_address - 16'h0001;
+		else
+			temporary_address = temporary_address + 16'h0001;
 	end
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		temporary_word_count = {1'b1, current_word_count[dma_select]};
-		if (next_word)
-			temporary_word_count = temporary_word_count - 17'h00001;
+		temporary_word_count = temporary_word_count - 17'h00001;
 	end
 	assign underflow = ~temporary_word_count[16];
-	assign update_high_address = (next_word ? transfer_address[8] != temporary_address[8] : 1'b0);
+	assign update_high_address = transfer_address[8] != temporary_address[8];
 	always @(posedge clock or posedge reset)
 		if (reset)
 			transfer_address <= 0;
@@ -166,6 +192,8 @@ module KF8237_Address_And_Count_Registers (
 			transfer_address <= transfer_address;
 	reg [15:0] read_register;
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		if (read_current_address[0])
 			read_register = current_address[0];
 		else if (read_current_address[1])
@@ -189,4 +217,5 @@ module KF8237_Address_And_Count_Registers (
 		else
 			read_address_or_count = read_register[15:8];
 	end
+	initial _sv2v_0 = 0;
 endmodule

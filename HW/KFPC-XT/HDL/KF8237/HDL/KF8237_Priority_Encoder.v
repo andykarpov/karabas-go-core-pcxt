@@ -1,26 +1,46 @@
 `default_nettype none
-
+// karabas: sv2v of MiSTer PCXT rtl/KFPC-XT/HDL/KF8237/HDL/KF8237_Priority_Encoder.sv at baaac36 (2022-10-29): the DMA TC fix
+// (fc23647: TC kept through wait states, it was lost with the short dma_ready of Ready.v), the
+// register write next to a DACK (49b97f9), "Improved bus speed" (baaac36)
 module KF8237_Priority_Encoder (
-	input		wire					clock,
-	input		wire					cpu_clock_posedge,
-	input		wire					cpu_clock_negedge,
-	input		wire					reset,
-	input		wire	[7:0]			internal_data_bus,
-	input		wire					write_command_register,
-	input		wire					write_request_register,
-	input		wire					set_or_reset_mask_register,
-	input		wire					write_mask_register,
-	input		wire					master_clear,
-	input		wire					clear_mask_register,
-	input		wire	[1:0]			dma_rotate,
-	input		wire	[3:0]			edge_request,
-	output	reg	[3:0]			dma_request_state,
-	output	reg	[3:0]			encoded_dma,
-	input		wire					end_of_process_internal,
-	input		wire	[3:0]			dma_acknowledge_internal,
-	input		wire	[3:0]			dma_request
-	);
-
+	clock,
+	cpu_clock_posedge,
+	cpu_clock_negedge,
+	reset,
+	internal_data_bus,
+	write_command_register,
+	write_request_register,
+	set_or_reset_mask_register,
+	write_mask_register,
+	master_clear,
+	clear_mask_register,
+	dma_rotate,
+	edge_request,
+	dma_request_state,
+	encoded_dma,
+	end_of_process_internal,
+	dma_acknowledge_internal,
+	dma_request
+);
+	reg _sv2v_0;
+	input wire clock;
+	input wire cpu_clock_posedge;
+	input wire cpu_clock_negedge;
+	input wire reset;
+	input wire [7:0] internal_data_bus;
+	input wire write_command_register;
+	input wire write_request_register;
+	input wire set_or_reset_mask_register;
+	input wire write_mask_register;
+	input wire master_clear;
+	input wire clear_mask_register;
+	input wire [1:0] dma_rotate;
+	input wire [3:0] edge_request;
+	output reg [3:0] dma_request_state;
+	output reg [3:0] encoded_dma;
+	input wire end_of_process_internal;
+	input wire [3:0] dma_acknowledge_internal;
+	input wire [3:0] dma_request;
 	reg [7:0] bit_select = 8'b00011011;
 	reg controller_disable;
 	reg rotating_priority;
@@ -56,9 +76,10 @@ module KF8237_Priority_Encoder (
 			dreq_sense_active_low <= internal_data_bus[6];
 		else
 			dreq_sense_active_low <= dreq_sense_active_low;
-	genvar mask_bit_i;
+	genvar _gv_mask_bit_i_1;
 	generate
-		for (mask_bit_i = 0; mask_bit_i < 4; mask_bit_i = mask_bit_i + 1) begin : MASK_REGISTER
+		for (_gv_mask_bit_i_1 = 0; _gv_mask_bit_i_1 < 4; _gv_mask_bit_i_1 = _gv_mask_bit_i_1 + 1) begin : MASK_REGISTER
+			localparam mask_bit_i = _gv_mask_bit_i_1;
 			always @(posedge clock or posedge reset)
 				if (reset)
 					mask_register[mask_bit_i] <= 1'b1;
@@ -72,9 +93,10 @@ module KF8237_Priority_Encoder (
 					mask_register[mask_bit_i] <= mask_register[mask_bit_i];
 		end
 	endgenerate
-	genvar req_reg_bit_i;
+	genvar _gv_req_reg_bit_i_1;
 	generate
-		for (req_reg_bit_i = 0; req_reg_bit_i < 4; req_reg_bit_i = req_reg_bit_i + 1) begin : REQUEST_REGISTER
+		for (_gv_req_reg_bit_i_1 = 0; _gv_req_reg_bit_i_1 < 4; _gv_req_reg_bit_i_1 = _gv_req_reg_bit_i_1 + 1) begin : REQUEST_REGISTER
+			localparam req_reg_bit_i = _gv_req_reg_bit_i_1;
 			always @(posedge clock or posedge reset)
 				if (reset)
 					request_register[req_reg_bit_i] <= 1'b0;
@@ -95,9 +117,10 @@ module KF8237_Priority_Encoder (
 			dma_request_ff <= 0;
 		else
 			dma_request_ff <= (dreq_sense_active_low ? ~dma_request : dma_request);
-	genvar req_lock_bit_i;
+	genvar _gv_req_lock_bit_i_1;
 	generate
-		for (req_lock_bit_i = 0; req_lock_bit_i < 4; req_lock_bit_i = req_lock_bit_i + 1) begin : REQUEST_LCOK
+		for (_gv_req_lock_bit_i_1 = 0; _gv_req_lock_bit_i_1 < 4; _gv_req_lock_bit_i_1 = _gv_req_lock_bit_i_1 + 1) begin : REQUEST_LCOK
+			localparam req_lock_bit_i = _gv_req_lock_bit_i_1;
 			always @(posedge clock or posedge reset)
 				if (reset)
 					dma_request_lock[req_lock_bit_i] <= 1'b0;
@@ -149,6 +172,8 @@ module KF8237_Priority_Encoder (
 		endcase
 	endfunction
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		dma_request_state = dma_request_ff;
 		dma_request_state = dma_request_state & ~dma_request_lock;
 		dma_request_state = dma_request_state & ~mask_register;
@@ -159,4 +184,5 @@ module KF8237_Priority_Encoder (
 		encoded_dma = (rotating_priority ? KF8237_Common_Package_rotate_left(encoded_dma, dma_rotate) : encoded_dma);
 		encoded_dma = (controller_disable ? 4'b0000 : encoded_dma);
 	end
+	initial _sv2v_0 = 0;
 endmodule

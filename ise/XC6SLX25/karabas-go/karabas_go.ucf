@@ -193,12 +193,19 @@ NET "V_CLK"       LOC="F6"   | IOSTANDARD = LVCMOS33;
 NET "MCU_SCK"       LOC="C3"   | IOSTANDARD = LVCMOS33;
 NET "MCU_MOSI"       LOC="B3"   | IOSTANDARD = LVCMOS33;
 NET "MCU_MISO"       LOC="B2"   | IOSTANDARD = LVCMOS33;
-NET "MCU_CS_N"       LOC="A2"   | IOSTANDARD = LVCMOS33;
+NET "MCU_CS_N"       LOC="A2"   | IOSTANDARD = LVCMOS33 | PULLUP;
 
 NET "MCU_SCK" CLOCK_DEDICATED_ROUTE = FALSE;
 
+# MCU burst lines
+NET "MCU_SPI_IO<0>"  LOC="N9"   | IOSTANDARD = LVCMOS33;
+NET "MCU_SPI_IO<1>"  LOC="M11"  | IOSTANDARD = LVCMOS33 | PULLUP; # burst cs_n: idle high while the mcu does not drive it
+
 # Timings
 # Timing constraints
+NET "MCU_SCK" TNM_NET = "clk_mcu";
+TIMESPEC "TS_CLK_MCU" = PERIOD "clk_mcu" 30 MHz;
+
 NET "CLK_50MHZ" TNM_NET = "CLK_50MHZ";
 TIMESPEC TS_clk50 = PERIOD "CLK_50MHZ" 20ns HIGH 50%;
 
@@ -210,4 +217,8 @@ TIMESPEC TS_IGNORE1 = FROM "clk_100" TO "clk_28_571" TIG ;
 TIMESPEC TS_IGNORE2 = FROM "clk_50"  TO "clk_28_571" TIG ;
 TIMESPEC TS_IGNORE3 = FROM "clk_28_571" TO "clk_100" TIG ;
 TIMESPEC TS_IGNORE4 = FROM "clk_28_571" TO "clk_50" TIG ;
+# cpu_address (clk_100) is latched at ALE (T1) and holds for the whole bus cycle (4 cpu clocks of
+# 70 ns or more); the chipset in clk_50 uses it with the command strobes from T2 on: two clocks
+INST "pcxt/sys_inst/cpu_address_*" TNM = "cpu_addr";
+TIMESPEC TS_CPU_ADDR = FROM "cpu_addr" TO "clk_50" 20 ns ;
 

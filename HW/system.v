@@ -44,7 +44,14 @@ module system(
 	output   wire              ide_rd_n,
 	output   wire              ide_wr_n,
 	output   wire  [2:0]       ide_a,
+`ifdef KARABASGO
+	// karabas: the IDE data bus split, so that the board can put the CF card and the image
+	// disks (hdf_ata) on it without a tristate bus inside the FPGA
+	output   wire  [15:0]      ide_dout,
+	input    wire  [15:0]      ide_din,
+`else
 	inout    wire  [15:0]      ide_d,
+`endif
 	output   wire              ide_reset_n,
 `else
 	output 	wire					SD_nCS,
@@ -55,6 +62,27 @@ module system(
 
 	input		wire					btn_green_n_i,
 	input		wire					btn_yellow_n_i
+`ifdef KARABASGO
+	// karabas: a reset of the whole PC (the OSD Reset item, PLL not locked), as at the end of the
+	// splash screen; the other boards have no such input
+	,input		wire					reset_in
+`endif
+`ifdef ROM_LOADER
+	// karabas: the rom loader of the mcu (BIOS / XTIDE BIOS, in clk_chipset)
+	,input    wire              rom_wr
+	,input    wire  [14:0]      rom_addr
+	,input    wire  [7:0]       rom_data
+`endif
+`ifdef FLOPPY
+	// karabas: the management bus of the floppy controller (floppy.v): the disks of drives A, B
+	,input    wire  [3:0]       fdd_mgmt_address
+	,input    wire              fdd_mgmt_fddn
+	,input    wire              fdd_mgmt_write
+	,input    wire  [15:0]      fdd_mgmt_writedata
+	,input    wire              fdd_mgmt_read
+	,output   wire  [15:0]      fdd_mgmt_readdata
+	,output   wire  [1:0]       fdd_request
+`endif
 	
 	/*
 	output	wire					LED,
@@ -176,7 +204,11 @@ always @(posedge clk_chipset) begin
     cen_opl2 <= clk_opl2_ff_2 & ~clk_opl2_ff_3;
 end
 
+`ifdef KARABASGO
+wire reset_wire = splashscreen | reset_in;
+`else
 wire reset_wire = splashscreen;
+`endif
 
 //////////////////////////////////////////////////////////////////
 
@@ -288,7 +320,11 @@ reg splash_status = 1'b0;
 //	 wire [1:0] scale = status[2:1];
 //	 wire [2:0] screen_mode = status[16:14];	 
 	 
+`ifdef FLOPPY
+	 assign  sw = 8'b01101101; // PCXT DIP Switches (CGA 80, two floppy drives)
+`else
 	 assign  sw = 8'b00101101; // PCXT DIP Switches (CGA 80)
+`endif
 	 assign  port_c_in[3:0] = port_b_out[3] ? sw[7:4] : sw[3:0];
 	
    wire [15:0]jtopl2_snd_e;
@@ -405,7 +441,12 @@ reg splash_status = 1'b0;
 		.ide_rd_n                             (ide_rd_n),
 		.ide_wr_n                             (ide_wr_n),
 		.ide_a                                (ide_a),
-		.ide_d                                (ide_d),
+`ifdef KARABASGO
+		.ide_dout(ide_dout),
+		.ide_din(ide_din),
+`else
+		.ide_d(ide_d),
+`endif
 		.ide_reset_n                          (ide_reset_n),		
 `else
 		.spi_clk                              (SD_CK),
@@ -414,6 +455,20 @@ reg splash_status = 1'b0;
 		.spi_miso                             (SD_DO),
 `endif
 		  
+`ifdef ROM_LOADER
+		.rom_wr(rom_wr),
+		.rom_addr(rom_addr),
+		.rom_data(rom_data),
+`endif
+`ifdef FLOPPY
+		.fdd_mgmt_address(fdd_mgmt_address),
+		.fdd_mgmt_fddn(fdd_mgmt_fddn),
+		.fdd_mgmt_write(fdd_mgmt_write),
+		.fdd_mgmt_writedata(fdd_mgmt_writedata),
+		.fdd_mgmt_read(fdd_mgmt_read),
+		.fdd_mgmt_readdata(fdd_mgmt_readdata),
+		.fdd_request(fdd_request),
+`endif
 		  .SRAM_ADDR                          (SRAM_ADDR),
 		  .xtctl                              (xtctl),
 		  .SRAM_DATA                          (SRAM_DATA),

@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-//`default_nettype none
+`default_nettype none
 
 /*
  HDMI PLL chain to produce a pixelclock as well as x5 clock pair for hdmi serializer based on 
@@ -7,40 +7,26 @@
 */
 
 module hdmi_pll(
-	input wire clk, // muxed 28/24!
-	input wire ds80,
+	input wire clk, // karabas: 28.571 MHz (pcxt clk_vga)
 	input wire reset,
 	output wire clk_hdmi, // x5
 	output wire clk_hdmi_n, // x5 180deg
 	output wire clk_pix, // x1
 	output wire clk_pix2, // x1/2
-	output wire [7:0] freq, // detected frequency 28,24Mhz
+	output wire [7:0] freq, // detected frequency 
 	output wire locked,
 	output wire o_reset
 );
 
 // freq counter
-wire [7:0] hdmi_freq = (ds80) ? 24 : 28;
+wire [7:0] hdmi_freq = 28;
 assign freq = hdmi_freq;
-
-// detect freq change
-reg hdmi_reset;
-reg prev_ds80;
-always @(posedge clk)
-begin
-	hdmi_reset <= 1'b0;
-	// reset when switching ds80
-	if (prev_ds80 != ds80) begin
-		hdmi_reset <= 1'b1;
-	end
-	prev_ds80 <= ds80;
-end
 
 // pll resetter
 wire pll_rst;
 pll_reset pll_reset(
 	.clk(clk),
-	.i_reset(hdmi_reset || reset),
+	.i_reset(reset),
 	.o_reset(pll_rst)
 );
 assign o_reset = pll_rst;
@@ -53,7 +39,7 @@ DCM_SP
     .CLKFX_DIVIDE          (1),
     .CLKFX_MULTIPLY        (5),
     .CLKIN_DIVIDE_BY_2     ("FALSE"),
-    .CLKIN_PERIOD          (17.800),
+    .CLKIN_PERIOD          (35.000), // karabas: clk_vga of pcxt, 28.571 MHz
     .CLKOUT_PHASE_SHIFT    ("NONE"),
     .CLK_FEEDBACK          ("1X"),
     .DESKEW_ADJUST         ("SYSTEM_SYNCHRONOUS"),
