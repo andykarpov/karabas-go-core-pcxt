@@ -31,6 +31,7 @@ module KF8253_Counter (
 	wire gate_edge;
 	reg load_edge;
 	reg start_counting;
+	reg first_count_edge;
 	reg [16:0] count_next;
 	reg count_period;
 	reg prev_count_period;
@@ -187,6 +188,16 @@ module KF8253_Counter (
 		end
 		else
 			start_counting <= start_counting;
+	// MiSTer 821cb1f: no output toggle on the first count edge of mode 3
+	always @(posedge clock or posedge reset)
+		if (reset)
+			first_count_edge <= 1'b0;
+		else if (start_counting == 1'b0)
+			first_count_edge <= 1'b1;
+		else if (count_edge == 1'b1)
+			first_count_edge <= 1'b0;
+		else
+			first_count_edge <= first_count_edge;
 	function [16:0] decrement;
 		input [16:0] count;
 		input is_bcd;
@@ -259,7 +270,7 @@ module KF8253_Counter (
 				if (counter_gate == 1'b0)
 					count_next = count;
 				if (count_next == 17'b00000000000000000) begin
-					count_period = 1'b1;
+					count_period = 1'b1 & ~first_count_edge;
 					count_next = count_preset_load;
 				end
 				if (gate_edge)
