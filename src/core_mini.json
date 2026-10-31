@@ -1,0 +1,24 @@
+{
+    "id": "pcxt",
+    "name": "PC XT",
+    "build": "26103110",
+    "bitstream": "karabas_mini_top.bin",
+    "visible": true,
+    "type": "osd",
+    "order": 6,
+    "eeprom_bank": 255,
+    "roms": [
+        {"filename": "rom/bios_sergey_xt.rom", "address": 0},
+        {"filename": "rom/xtide.rom", "address": 16384}
+    ],
+    "osd": [
+        {"type": "S", "bits": 1, "name": "Video mode", "options": ["RGB", "VGA"], "default": 1, "hotkey": "Menu+F11"},
+        {"type": "S", "bits": 1, "name": "Turbo", "options": ["Off", "On"], "default": 0, "hotkey": "Menu+F12"},
+        {"type": "S", "bits": 1, "name": "HDD0", "options": ["CF card", "Image"], "default": 1},
+        {"type": "F", "name": "HDD0 image", "slot": 0, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F1"},
+        {"type": "F", "name": "HDD1 image", "slot": 1, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F2"},
+        {"type": "F", "name": "FDD A image", "slot": 2, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F3"},
+        {"type": "F", "name": "FDD B image", "slot": 3, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F4"},
+        {"type": "T", "bits": 1, "name": "Reset", "options": null, "default": 0, "hotkey": "Ctrl+Alt+Del"}
+    ]
+}

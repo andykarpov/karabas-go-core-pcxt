@@ -1,63 +1,67 @@
-# [IBM PC/XT](https://en.wikipedia.org/wiki/IBM_Personal_Computer_XT) for [Xilinx Spartan 6](https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html)
+# IBM PC/XT core for Karabas Go / Mini / Mini G
 
-PCXT port for Xilinx Spartan 6 Family FPGAs by [@spark2k06](https://github.com/spark2k06/).
+An [IBM PC/XT](https://en.wikipedia.org/wiki/IBM_Personal_Computer_XT) for the Karabas Go, Karabas Mini and Karabas Mini G boards (Xilinx Spartan-6 XC6SLX25). It grew from [PCXT_Xilinx_Spartan_6](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6) by [@spark2k06](https://github.com/spark2k06/), the Spartan-6 port of [PCXT_MiSTer](https://github.com/MiSTer-devel/PCXT_MiSTer). Fixes and features of PCXT_MiSTer were ported from there (see [docs/UPSTREAM.md](docs/UPSTREAM.md)).
 
-## Description
+![splashscreen](docs/img/splashscreen.png)
 
-The purpose of this core is to implement a PCXT as reliable as possible. For this purpose, the [MCL86 core](https://github.com/MicroCoreLabs/Projects/tree/master/MCL86) from [@MicroCoreLabs](https://github.com/MicroCoreLabs/) and [KFPC-XT](https://github.com/kitune-san/KFPC-XT) from [@kitune-san](https://github.com/kitune-san) are used.
+## Features
 
-The [Graphics Gremlin project](https://github.com/schlae/graphics-gremlin) from TubeTimeUS ([@schlae](https://github.com/schlae)) has also been integrated in this first stage.
+- 8088 CPU: the MCL86 of PCXT_MiSTer 2026, with the instruction timing of an 8088; Turbo drops the timing and runs as fast as the bus allows.
+- KFPC-XT chipset: 8259 PIC, 8253 PIT, 8255 PPI, 8237 DMA, 8288.
+- 640 KB RAM, UMB and EMS (segment C000h) in the board SRAM.
+- CGA (Graphics Gremlin): VGA output on Go, HDMI on Mini / Mini G; RGB (15 kHz) or VGA (scandoubled) mode.
+- Sound: PC speaker, Adlib (JTOPL2), Tandy (SN76489); I2S DAC on Go / Mini G, sigma-delta on Mini, HDMI audio.
+- MIDI OUT: an MPU-401 in UART mode at 330h to the MIDI synthesizer of the board.
+- Hard disks: XTIDE BIOS, the CF card of the board and up to two disk images on the SD card.
+- Floppy disks: two drives (A, B), 160K to 2.88M images on the SD card.
+- USB keyboard (XT scancodes from the MCU) and USB mouse as a serial mouse on COM1 (CTMOUSE in `hdd/`).
+- Real time clock of the board at ports 2C0h / 2C1h (`GET_RTC.EXE` in `hdd/` sets the DOS date and time).
+- BIOS: Sergey Kiselev's XT BIOS 1.0.0a (1.44M floppies), loaded from the core file; another BIOS needs only a new core file (see Build).
 
-[JTOPL](https://github.com/jotego/jtopl) by Jose Tejada (@topapate) was integrated for AdLib sound.
+## OSD (Menu+Esc)
 
-An SN76489AN Compatible Implementation (Tandy Sound) written in VHDL was also integrated - Copyright (c) 2005, 2006, [Arnim Laeuger](https://github.com/devsaurus) (arnim.laeuger@gmx.net)
+Item | Hotkey | Values
+---- | ------ | ------
+Video mode | Menu+F11 | RGB / VGA
+Turbo | Menu+F12 | Off / On
+HDD0 | | CF card / Image
+HDD0 image | Menu+F1 | `.img .vhd .hdf .bin .raw`
+HDD1 image | Menu+F2 | `.img .vhd .hdf .bin .raw`
+FDD A image | Menu+F3 | `.img .ima .dsk .vfd .flp`
+FDD B image | Menu+F4 | `.img .ima .dsk .vfd .flp`
+Reset | Ctrl+Alt+Del | resets the whole PC
 
-![splashscreen](./doc/img/splashscreen.png)
+With HDD0 = CF card, the CF card is drive 0 and the HDD1 image drive 1; with HDD0 = Image, the two images are drives 0 and 1.
 
-## Models powered by Spartan 6
-Family | Models | LEs | BRAM
--------- | ----------- | ----------- | -----------
-XC6SLX9 | ZXUno, ZXUnCore | 9152 | 72 Kbytes
-XC6SLX16 | ZXDos, NGo | 14579 | 72 Kbytes
-XC6SLX25 | UnoXT, UnoXT2, ZXDos+, Karabas-Go | 24051 | 117 KBytes
+## Build
 
-### PCXT default features according to model
+ISE 14.7 on Linux (`/opt/Xilinx/14.7/ISE_DS/settings64.sh`), in `src/`:
 
-Model | Memory | Audio | Tandy 1000 support | Binary
--------- | ----------- | ----------- | ----------- | ----------- 
-ZXUno 512Kb | 512Kb | PC Speaker | No | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxuno_512Kb/coreXX.zx1)
-ZXUno 2Mb | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxuno_2Mb/coreXX.zx1)
-ZXUno 2Mb Ext | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxuno_2Mb/coreXX.zx1)
-ZXUno VGAWifi | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/vgawifi/coreXX.ZX1)
-ZXUnCore 512Kb | 512Kb | PC Speaker | No | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxuncore_512Kb/coreXX.zx1)
-ZXUnCore 2Mb | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxuncore_2Mb_Ext/coreXX.zx1)
-ZXDos 512Kb | 512Kb | PC Speaker + Adlib | No | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxdos_512Kb/coreXX.zx2)
-ZXDos 1Mb | 640Kb + 384Kb UMB | PC Speaker + Adlib + Tandy Sound | Yes | [folder](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/tree/main/releases/zxdos_1Mb)
-NGo | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/ngo/un_pcxt.bit)
-ZXDos+ | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/zxdosplus/coreXX.zxd)
-UnoXT | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/unoxt/coreXX.zxt)
-UnoXT2 | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/spark2k06/PCXT_Xilinx_Spartan_6/raw/main/releases/unoxt2/coreXX.xt2)
-Karabas-Go | 640Kb + 384Kb UMB + 1Mb EMS (Segment 0xC000) | PC Speaker + Adlib + Tandy Sound | Yes | [download](https://github.com/andykarpov/karabas-go/raw/main/cores/pcxt.kg1)
+    make minig        # Mini G: karabas_minig_top.bin, pcxt.kg3
+    make mini         # Mini:   karabas_mini_top.bin,  pcxt.kg2
+    make go           # Go:     karabas_go_top.bin,    pcxt.kg1
+    make minig-core   # repack pcxt.kg3 only (core_minig.json: build number, BIOS)
 
-### PCXT common features
+The submodule `modules/` (karabas-go-modules) is needed: clone with `--recursive` or run `git submodule update --init`. `make_core.py` is a link into `karabas-go-tools`, which must sit next to this repository. The BIOS and the XTIDE BIOS of the core file are the `roms` of `core*.json` (`src/rom/`).
 
-* Color Graphics Adapter (CGA)
-* VGA/RGB output switch (F11, Menu+F11 on Karabas-Go)
-* Turbo Mode ON/OFF (F12, Menu+F12 on Karabas-Go)
-* XTIDE support (with real CF card on Karabas-Go)
-* Mouse support into COM1 serial port, this works like any Microsoft mouse... you just need a driver to configure it, like CTMOUSE 1.9 (available into hdd folder)
+Simulations (iverilog) in `src/sim/`: `run_cpu_sim.sh` (CPU flags), `run_disks_sim.sh` (XTIDE + disk images), `run_fdd_sim.sh` (floppy images), `run_dma_sim.sh` (floppy DMA), `tb_mpu401.v` (MIDI).
 
-Note: On LX9 models, it is possible to remove the mouse and add Adlib, it would be necessary to resynthesise to get the binary, see Developers section.
+## Layout
 
-## To-do list and challenges
+- `src/`: the build (Makefile, tops, ucf, prj, `core*.json`, `config.vh`, the cores `pcxt.kg*`), `rtl/`, `sim/`, `rom/`.
+- `src/rtl/`: `karabas_pcxt.v` (the machine of the three tops: MCU link, OSD, disks), `system.v` (the PC), `cpu/`, `chipset/`, `video/`, `sound/`, `uart/`, `common/`, `hdmi/`, `mouse/`.
+- `modules/`: karabas-go-modules (MCU link, OSD overlay, disk images, HDMI, DACs).
+- `SW/`: BIOS sources and ROM images, the splash screen. `hdd/`: DOS tools. `docs/`: the plan of the port, the inventory of PCXT_MiSTer commits.
 
-* Joystick
-* Improved timing to apply cycle-accurate
+## Credits and licenses
 
-## Developers
+The core is GPL v3 (LICENSE.txt); its parts keep their own licenses.
 
-The bitstream generation process has been automated. It is possible to generate and update the files in the release folder automatically by running the scripts in each folder. They only require the environment variable XILINX_BIN_PATH to be defined, with the path to the BIN folder where ISE has been installed.
-
-Any contribution and pull request, please carry it out on the prerelease branch. Periodically they will be reviewed, moved and merged into the main branch, together with the corresponding release.
-
-Thank you!
+- [MCL86](https://github.com/MicroCoreLabs/Projects/tree/master/MCL86) by Ted Fried ([@MicroCoreLabs](https://github.com/MicroCoreLabs/)), the 2026 version by Marcus Andrade (opengateware), MIT.
+- [KFPC-XT](https://github.com/kitune-san/KFPC-XT) by [@kitune-san](https://github.com/kitune-san), MIT.
+- [Graphics Gremlin](https://github.com/schlae/graphics-gremlin) by TubeTimeUS ([@schlae](https://github.com/schlae)).
+- [JTOPL](https://github.com/jotego/jtopl) by Jose Tejada ([@topapate](https://github.com/jotego)), GPL v3.
+- SN76489AN compatible implementation by [Arnim Laeuger](https://github.com/devsaurus).
+- The floppy controller of ao486 (Aleksander Osman, Alexey Melnikov), BSD, as in PCXT_MiSTer.
+- PCXT_MiSTer and PCXT_Xilinx_Spartan_6 by [@spark2k06](https://github.com/spark2k06/) and contributors.
+- XT BIOS by Sergey Kiselev; XTIDE Universal BIOS.
