@@ -50,7 +50,7 @@ An IBM PC/XT core for the Karabas Go, Mini and Mini G boards (Spartan-6 XC6SLX25
 
 ## Git
 
-- The default branch is `main` (remote `andykarpov/karabas-go-core-pcxt`). Ф0-Ф2, Ф4, Ф5 went through `kg-modules` (PR #1, merged, release 26103107). Ф3 is on `upstream-fixes` (from `main`): commits there, no PR per step. The local branch `mister-update` (March 2024) is an ancestor of `main`: fully merged, nothing on it.
+- The default branch is `main` (remote `andykarpov/karabas-go-core-pcxt`). Ф0-Ф2, Ф4, Ф5 went through `kg-modules` (PR #1, merged, release 26103107). Ф3 part 1 went through `upstream-fixes` (PR #2, merged, release 26103110); part 2 (ROMs, HDMI frame buffer in SDRAM) is on `roms-hdmi`: commits there, no PR per step. The local branch `mister-update` (March 2024) is an ancestor of `main`: fully merged, nothing on it.
 - Commits and PRs in English. Commit or push only when the user asks.
 
 ## Memory
