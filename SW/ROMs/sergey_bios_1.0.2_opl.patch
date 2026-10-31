@@ -1,0 +1,652 @@
+diff -ruN a/src/bios.asm b/src/bios.asm
+--- a/src/bios.asm
++++ b/src/bios.asm
+@@ -234,6 +234,7 @@
+ fdc_cylinder	equ	94h	; byte[2] - current cylinder (drives 0 - 1)
+ kbd_flags_3	equ	96h	; byte - keyboard status flags 3
+ kbd_flags_4	equ	97h	; byte - keyboard status flags 4
++opl_type	equ	98h	; byte - OPL type card (MiSTer PCXT)
+ vga_table_ptr	equ	0A8h	; dword - BIOS Video Save/Override Pointer
+ 				;       Table address
+ prt_scrn_flags	equ	100h	; byte - print screen flags
+@@ -285,6 +286,7 @@
+ %include	"ps2aux.inc"
+ %endif
+ %include	"sound.inc"		; sound test
++%include	"opl.inc"		; check OPL2/3 FM boards (MiSTer PCXT)
+ %include	"cpu.inc"		; CPU and FPU detection
+ 
+ %ifdef SECOND_PIC
+@@ -999,11 +1001,12 @@
+ 	out	pit_ch1_reg,al		; pulse every 15ms
+ 
+ ;-------------------------------------------------------------------------
+-; Play "power on" sound - also tests PIT functionality
++; Tests PIT functionality (MiSTer PCXT: the power on sound is played later, on an OPL2 if one is
++; there)
+ 
+ 	mov     al,e_pit_init
+ 	out	post_reg,al
+-	call	sound
++	call	beepinit
+ 
+ ;-------------------------------------------------------------------------
+ ; Initialize PIC (8259)
+@@ -1118,7 +1121,14 @@
+ %ifdef MACHINE_BOOK8088
+ 	or	byte [equipment_list],equip_color_80 ; built-in CGA
+ %endif ; MACHINE_BOOK8088
+-; 
++
++;-------------------------------------------------------------------------
++; Play "power on" sound (MiSTer PCXT: on the OPL2 at 388h, else on the speaker)
++
++	call	opl_init
++	mov	[opl_type],al
++	call	oplsound
++
+ ;-------------------------------------------------------------------------
+ ; look for video BIOS, initialize it if present
+ 
+@@ -1157,6 +1167,9 @@
+ 
+ .video_initialized:
+ 
++	mov	bl,1			; 0.1 second beep (MiSTer PCXT)
++	call	beep
++
+ ;-------------------------------------------------------------------------
+ ; print the copyright message
+ 
+@@ -1190,6 +1203,8 @@
+ 	call	print_rtc		; print current RTC time
+ %endif ; AT_RTC
+ 	call	print_display		; print display type
++	mov	al,[opl_type]
++	call	opl_print		; print OPL card type (MiSTer PCXT)
+ %ifdef PS2_MOUSE
+ 	call	print_mouse		; print mouse presence
+ %endif ; PS2_MOUSE
+diff -ruN a/src/messages.inc b/src/messages.inc
+--- a/src/messages.inc
++++ b/src/messages.inc
+@@ -207,6 +207,18 @@
+ msg_save_error	db	'ERROR', 0Dh, 0Ah, 00h
+ %endif ; FLASH_NVRAM
+ %endif ; BIOS_SETUP
++
++msg_opl_none	db		'None or unknown', 0Dh, 0Ah, 00h
++msg_oplcard		db      'OPL Sound Card:             ', 00h
++msg_adlib		db		'Adlib FM compatible', 0Dh, 0Ah, 00h
++msg_adlibgold	db		'Adlib Gold FM compatible', 0Dh, 0Ah, 00h
++msg_sbpro		db		'Sound Blaster 2.0/PRO FM compatible', 0Dh, 0Ah, 00h
++msg_sbpro2		db		'Sound Blaster PRO II/+ FM compatible', 0Dh, 0Ah, 00h
++msg_opl2_220h	db		'220h OPL2', 0Dh, 0Ah, 00h
++msg_opl2_240h	db		'240h OPL2', 0Dh, 0Ah, 00h
++msg_opl3_220h	db		'220h OPL3', 0Dh, 0Ah, 00h
++msg_opl3_240h	db		'240h OPL3', 0Dh, 0Ah, 00h
++
+ tbl_floppy	dw	msg_none
+ 		dw	msg_floppy_360
+ 		dw	msg_floppy_1200
+diff -ruN a/src/opl.inc b/src/opl.inc
+--- a/src/opl.inc
++++ b/src/opl.inc
+@@ -0,0 +1,252 @@
++;============================================
++; opl.inc - Check & Test OPL2/3 FM Sound Card 
++;--------------------------------------------
++;
++; Compiles with NASM 2.11.08, might work with other versions
++;
++; Copyright (C) 2019 - 2020 Aitor Gómez.
++; Provided for hobbyist use on the Xi 8088 and Micro 8088 boards.
++;
++; This program is free software: you can redistribute it and/or modify
++; it under the terms of the GNU General Public License as published by
++; the Free Software Foundation, either version 3 of the License, or
++; (at your option) any later version.
++;
++; This program is distributed in the hope that it will be useful,
++; but WITHOUT ANY WARRANTY; without even the implied warranty of
++; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++; GNU General Public License for more details.
++;
++; You should have received a copy of the GNU General Public License
++; along with this program.  If not, see <http://www.gnu.org/licenses/>.
++;
++;=========================================================================
++
++setport:
++	out dx, al
++	xchg ax, bx
++	mov cx, 6
++	
++.loop1:
++	in al,dx
++	loop .loop1
++	
++	xchg ax, bx
++	xchg al, ah
++	add dx, 1
++	out dx, al	
++	xchg ax, bx
++	sub dx, 1
++	mov cx, 35
++
++.loop2:
++	in al,dx
++	loop .loop2	
++	
++	ret
++
++;=========================================================================
++; oplcheck - Check OPL FM board 
++; Input:
++;	none
++; Output:
++;	none, destroys some registers
++;-------------------------------------------------------------------------
++oplcheck:
++	push cx
++	push ax
++	
++	mov al, 4
++	mov ah, 60h	
++	call setport
++	
++	mov al, 4	
++	mov ah, 80h	
++	call setport
++	
++	mov cx, 0F0h
++
++.delay1:
++	nop
++	loop .delay1
++		
++	in al, dx
++	push ax
++	
++	mov al, 2
++	mov ah, 0FFh	
++	call setport
++	
++	mov al, 4
++	mov ah, 21h	
++	call setport
++	
++	mov cx, 0F0h
++	
++.delay2:
++	nop
++	loop .delay2
++	
++	pop ax
++	xchg al, ah
++	in al, dx
++	push ax
++	
++	mov al, 4
++	mov ah, 60h	
++	call setport
++		
++	mov al, 4
++	mov ah, 80h	
++	call setport
++	
++	pop ax
++	xchg al, ah
++	
++	xor bl, bl ; None (0)
++	and ax, 0e0e0h
++	cmp ax, 0c000h	
++	jnz .exit1
++	mov bl, 1 ; OPL2 (1)
++	in al, dx
++	and al, 6
++	cmp al, 0
++	jnz .exit1
++	mov bl, 2 ; OPL3 (2)
++	
++.exit1:
++	pop ax
++	pop cx
++	ret
++
++opl_init:
++
++	xor al,al	; None
++
++.check_388h:
++
++	mov dx,388h
++	call oplcheck
++	cmp bl, 0
++	jz .check_220h
++	cmp bl, 1
++	jz .opl2_388h
++	or al, 00000010b ; 388h OPL3	
++.opl2_388h:
++	or al, 00000001b ; 388h OPL2
++	
++.check_220h:
++	
++	mov dx,220h
++	call oplcheck
++	cmp bl, 0
++	jz .check_240h
++	cmp bl, 1
++	jz .opl2_220h
++	or al, 00001000b ; 220h OPL3	
++.opl2_220h:
++	or al, 00000100b ; 220h OPL2
++	
++.check_240h:
++	
++	mov dx,240h
++	call oplcheck
++	cmp bl, 0
++	jz .end_check
++	cmp bl, 1
++	jz .opl2_240h
++	or al, 00100000b ; 240h OPL3	
++.opl2_240h:
++	or al, 00010000b ; 240h OPL2
++	
++.end_check:
++
++	ret
++
++; opl_print
++; Input:
++;	al, OPL card type
++; Output:
++;	none, destroys some registers
++;-------------------------------------------------------------------------
++	
++opl_print:
++
++	mov	si,msg_oplcard
++	call	print	
++	cmp al, 00000001b ; 388h OPL2
++	jnz .next1
++	mov	si,msg_adlib
++	call	print
++	jmp .exit2
++	
++.next1:
++
++	cmp al, 00000011b ; 388h OPL3
++	jnz .next2
++	mov	si,msg_adlibgold
++	call	print
++	jmp .exit2
++	
++.next2:
++
++	cmp al, 00000101b ; 388h OPL2 + 220h OPL2
++	jz .sbpro
++	cmp al, 00010001b ; 388h OPL2 + 240h OPL2
++	jnz .next3
++.sbpro:
++	mov	si,msg_sbpro
++	call	print
++	jmp .exit2
++	
++.next3:
++
++	cmp al, 00001111b ; 388h OPL3 + 220h OPL3
++	jz .sbpro2
++	cmp al, 00110011b ; 388h OPL3 + 240h OPL3
++	jnz .next4
++.sbpro2:
++	mov	si,msg_sbpro2
++	call	print
++	jmp .exit2
++	
++.next4:
++
++	cmp al, 00000100b ; 220h OPL2
++	jnz .next5
++	mov	si,msg_opl2_220h
++	call	print
++	jmp .exit2
++	
++.next5:
++
++	cmp al, 00010000b ; 240h OPL2
++	jnz .next6
++	mov	si,msg_opl2_240h
++	call	print
++	jmp .exit2
++	
++.next6:
++
++	cmp al, 00001100b ; 220h OPL3
++	jnz .next7
++	mov	si,msg_opl3_220h
++	call	print
++	jmp .exit2
++	
++.next7:
++
++	cmp al, 00110000b ; 240h OPL3
++	jnz .msg_opl_none
++	mov	si,msg_opl3_240h
++	call	print
++	jmp .exit2
++	
++.msg_opl_none:
++
++	mov	si,msg_opl_none
++	call	print
++	jmp .exit2
++
++.exit2:
++	ret
+diff -ruN a/src/sound.inc b/src/sound.inc
+--- a/src/sound.inc
++++ b/src/sound.inc
+@@ -4,9 +4,13 @@
+ ;
+ ; Compiles with NASM 2.13.02, might work with other versions
+ ;
++; Copyright (C) 2019 - 2020 Aitor Gomez (spark2k06)
+ ; Copyright (C) 2010 - 2026 Sergey Kiselev.
+ ; Provided for hobbyist use on the Xi 8088 and Micro 8088 boards.
+ ;
++; Intel-Inside melody OPL2 is based and adapted from a work by @leonardo-ono
++; https://github.com/leonardo-ono/Assembly8086OPL2AdlibHardwareLevelProgrammingTest
++;
+ ; This program is free software: you can redistribute it and/or modify
+ ; it under the terms of the GNU General Public License as published by
+ ; the Free Software Foundation, either version 3 of the License, or
+@@ -29,17 +33,41 @@
+ 	dw	pic_freq/277		; D flat
+ 	dw	pic_freq/415		; A flat
+ 	dw	0
++notes2:
++    dw	3047		; G4
++    dw	2712		; A4
++    dw	2034		; D5
++    dw	-1			; silent
++	dw	0
+ 
+ ;=========================================================================
+ ; sound - Play power-on sound.
+ ; Input:
+-;	none
++;	al, OPL card type
+ ; Output:
+ ;	none, destroys some registers
+ ;-------------------------------------------------------------------------
+-sound:
+-	cld
++
++beepinit:
++
++    cld
++    mov	si,notes2		; set SI to notes table
++    mov cx,1500h        ; delay between notes for PIT test
++    jmp beepinit2
++
++oplsound:
++		
++	and al, 1			; 388h OPL2 compatible available?
++	cmp al, 1
++	
++	jz play_intel		; Plays with OPL2	
++						; Else through PC-Speaker
++
++	cld					
+ 	mov	si,notes		; set SI to notes table
++    mov	cx,3000h        ; delay between notes
++
++beepinit2:
+ 
+ 	mov	al,0B6h			; set PIC channel 2 to mode 3
+ 	out	pit_ctl_reg,al
+@@ -58,15 +86,16 @@
+         out     ppi_pb_reg,al		; write the new value
+ 
+ .silent:
+-	mov	cx,3000h
+ 	call	delay_15us		; delay while note is playing
+ 
+ 	in	al,ppi_pb_reg		; read current value of PORT B
+ 	and	al,0FCh			; turn off the speaker
+         out     ppi_pb_reg,al		; write the new value
+ 
+-        mov     cx,0100h
++    push cx
++    mov     cx,0100h
+ 	call	delay_15us		; delay after the note
++    pop cx
+         
+         jmp     .loop			; play the next note
+ .exit:
+@@ -99,3 +128,223 @@
+ 	out	ppi_pb_reg,al		; write the new value
+ 	pop	ax
+ 	ret
++
++play_intel:
++			
++	call reset_all_registers
++		
++	mov cl, 0 ; channel 0
++	call setup_piano_instrument			
++	mov cl, 1 ; channel 1
++	call setup_piano_instrument
++	mov cl, 2 ; channel 2
++	call setup_piano_instrument
++	
++	call play_intel1
++	ret
++	
++play_intel1:
++	mov di, 0
++	
++.next_note:
++	; channel 0
++	; di = index
++	; cl = channel
++	; bx = channel music data
++	mov cl, 0
++	cs mov bx, intel_music_0
++	call play_channel_note
++	
++	; channel 1
++	; di = index
++	; cl = channel
++	; bx = channel music data
++	mov cl, 1
++	cs mov bx, intel_music_1
++	call play_channel_note
++	
++	; channel 2
++	; di = index
++	; cl = channel
++	; bx = channel music data
++	mov cl, 2
++	cs mov bx, intel_music_2
++	call play_channel_note
++	
++	push ax
++	push cx
++	push dx
++	mov dx, 389h			
++	mov cx, 6000h ; delay
++.delay:
++	in al, dx			
++	loop .delay
++	pop dx
++	pop cx
++	pop ax
++	
++	inc di
++	cmp di, word [cs:intel_music_size]
++	jb .next_note
++.end:
++	ret
++
++; di = index
++; cl = channel
++; bx = channel music data
++play_channel_note:
++	push di
++	add di, bx
++	mov bh, 0
++	mov bl, [cs:di]
++	pop di
++
++	cmp bl, 255 ; ignore
++	jz .ignore
++	cmp bl, 254 ; note off
++	jz .note_off
++	
++.play_midi_note:
++	mov si, bx ; si = midi note
++	; mov cl, 0 ; cl = channel
++	call note_on
++	jmp .ignore
++	
++.note_off:
++	;mov cl, 0 ; cl = channel
++	call note_off
++.ignore:
++	ret
++	
++; si = midi note
++; cl = channel
++note_on:
++	shl si, 1
++	mov ax, word [cs:midi_note_to_freq_table + si]
++	
++	mov bl, 0a0h ; register
++	add bl, cl
++	mov bh, al ; value
++	call write_adlib
++
++	mov bl, 0b0h ; register
++	add bl, cl
++	mov bh, 34h ; value
++	or bh, ah
++	call write_adlib
++
++	ret
++
++; cl = channel
++note_off:
++	mov bl, 0b0h ; register
++	add bl, cl
++	mov bh, 0h ; value
++	call write_adlib
++	ret
++
++; cl = channel
++setup_piano_instrument:
++	mov si, 0
++.next_register:
++	mov bl, [cs:instr_registers + si] ; register
++	add bl, cl
++	mov bh, [cs:piano_instr + si] ; value
++	call write_adlib
++	inc si
++	cmp si, word [cs:instr_registers_count]
++	jb .next_register
++.end:
++	ret
++
++reset_all_registers:
++	mov bl, 0h
++	mov bh, 0
++.next_register:
++	; bl = register
++	; bh = value
++	call write_adlib
++	inc bl
++	cmp bl, 0f5h
++	jbe .next_register
++.end:
++	ret
++
++	; bl = register
++	; bh = value
++write_adlib:
++	push ax
++	push bx
++	push cx
++	push dx
++
++	mov dx, 388h
++	mov al, bl
++	out dx, al			
++
++	mov dx, 389h
++	mov cx, 6
++.delay_1:
++	in al, dx
++	loop .delay_1
++
++	mov al, bh
++	out dx, al
++
++	mov cx, 35
++.delay_2:
++	in al, dx
++	loop .delay_2
++
++	pop dx
++	pop cx
++	pop bx
++	pop ax
++	
++	ret
++	
++instr_registers_count:	dw 11
++instr_registers:		db 020h, 040h, 060h, 080h, 0e0h, 0c0h, 023h, 043h, 063h, 083h, 0e3h
++piano_instr:			db 033h, 05ah, 0b2h, 050h, 001h, 000h, 031h, 000h, 0b1h, 0f5h, 001h
++	
++						       
++
++midi_note_to_freq_table:
++				db 005h, 000h, 005h, 000h, 006h, 000h, 006h, 000h, 006h, 000h, 007h, 000h, 007h, 000h, 008h, 000h
++				db 008h, 000h, 009h, 000h, 009h, 000h, 00ah, 000h, 00ah, 000h, 00bh, 000h, 00ch, 000h, 00ch, 000h
++				db 00dh, 000h, 00eh, 000h, 00fh, 000h, 010h, 000h, 011h, 000h, 012h, 000h, 013h, 000h, 014h, 000h
++				db 015h, 000h, 016h, 000h, 018h, 000h, 019h, 000h, 01bh, 000h, 01ch, 000h, 01eh, 000h, 020h, 000h
++				db 022h, 000h, 024h, 000h, 026h, 000h, 028h, 000h, 02bh, 000h, 02dh, 000h, 030h, 000h, 033h, 000h
++				db 036h, 000h, 039h, 000h, 03ch, 000h, 040h, 000h, 044h, 000h, 048h, 000h, 04ch, 000h, 051h, 000h
++				db 056h, 000h, 05bh, 000h, 060h, 000h, 066h, 000h, 06ch, 000h, 073h, 000h, 079h, 000h, 081h, 000h
++				db 088h, 000h, 091h, 000h, 099h, 000h, 0a2h, 000h, 0ach, 000h, 0b6h, 000h, 0c1h, 000h, 0cdh, 000h
++				db 0d9h, 000h, 0e6h, 000h, 0f3h, 000h, 002h, 001h, 011h, 001h, 022h, 001h, 033h, 001h, 045h, 001h
++				db 058h, 001h, 06dh, 001h, 083h, 001h, 09ah, 001h, 0b2h, 001h, 0cch, 001h, 0e7h, 001h, 004h, 002h
++				db 023h, 002h, 044h, 002h, 066h, 002h, 08bh, 002h, 0b1h, 002h, 0dah, 002h, 006h, 003h, 034h, 003h
++				db 065h, 003h, 098h, 003h, 0cfh, 003h, 009h, 004h, 046h, 004h, 088h, 004h, 0cdh, 004h, 016h, 005h
++				db 063h, 005h, 0b5h, 005h, 00ch, 006h, 068h, 006h, 0cah, 006h, 031h, 007h, 09eh, 007h, 012h, 008h
++				db 08dh, 008h, 010h, 009h, 09ah, 009h, 02ch, 00ah, 0c7h, 00ah, 06bh, 00bh, 018h, 00ch, 0d1h, 00ch
++				db 094h, 00dh, 062h, 00eh, 03dh, 00fh, 025h, 010h, 01bh, 011h, 020h, 012h, 034h, 013h, 058h, 014h
++				db 08eh, 015h, 0d6h, 016h, 031h, 018h, 0a2h, 019h, 028h, 01bh, 0c5h, 01ch, 07bh, 01eh, 04bh, 020h
++
++
++intel_music_size: dw 24
++	
++	; 0~127 -> midi note
++	; 254   -> note off
++	; 255   -> ignore
++			
++	; channel 0
++	intel_music_0:
++			db   73, 0ffh, 0ffh, 0ffh, 0ffh, 0feh,   73, 0ffh, 0ffh, 0ffh, 0ffh, 0feh,   80, 0ffh, 0ffh, 0ffh
++			db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
++
++	; channel 1
++	intel_music_1:
++			db   80, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0feh,   78, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
++			db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
++			
++	; channel 2
++	intel_music_2:
++			db   85, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0feh,   73, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
++			db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
