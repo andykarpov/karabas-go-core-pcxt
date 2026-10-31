@@ -3,7 +3,9 @@
  karabas: floppy.v of the MiSTer PCXT core (rtl/common, from ao486), as Verilog-2001 for XST:
  the arrays of two drives are [0:1] (1-bit ones are vectors), old_enable is declared outside its
  always block, the fifo is 512 bytes deep. One fix: the last sector of a format with DMA
- (cmd_format_input_cut). Everything else as MiSTer.
+ (cmd_format_input_cut). For the physical drives (pcxt_fdd_phys): management registers 6 (a
+ media error ends the request with an error status; read: the request is a format) and 7 (the
+ selected drive and the motors). Everything else as MiSTer.
 */
 
 /*
@@ -64,6 +66,11 @@ module floppy
 	0x03.[7:0]:    media sectors per track
 	0x04.[31:0]:   media total sector count
 	0x05.[1:0]:    media heads
+	karabas (pcxt_fdd_phys, the physical drives):
+	0x06 write:    a media error ends the sector request: 1 sector not found, 2 data CRC, 3 no
+	               address mark (no disk)
+	0x06.[0] read: the request is a format
+	0x07 read:     [2] the selected drive, [1:0] the motor bits of the digital output register
 	*/
 	input       [3:0] mgmt_address,
 	input             mgmt_fddn,
@@ -84,7 +91,14 @@ always @(posedge clk) clk_rate <= clock_rate;
 
 //------------------------------------------------------------------------------ media management
 
-assign mgmt_readdata = (!mgmt_address) ? {selected_drive[0], sd_sector[14:0]} : (&mgmt_address) ? fifo_readdata : 16'd1;
+assign mgmt_readdata = (!mgmt_address) ? {selected_drive[0], sd_sector[14:0]} : (&mgmt_address) ? fifo_readdata :
+	(mgmt_address == 4'd6) ? {15'd0, cmd_format_in_progress} : // karabas
+	(mgmt_address == 4'd7) ? {13'd0, selected_drive[0], motor_enable} : 16'd1;
+
+// karabas: a media error of a physical drive while a sector is requested (assigned after state)
+wire media_error;
+wire [7:0] media_error_st1 = (mgmt_writedata[1:0] == 2'd1) ? 8'h04 : (mgmt_writedata[1:0] == 2'd2) ? 8'h20 : 8'h01;
+wire [7:0] media_error_st2 = (mgmt_writedata[1:0] == 2'd2) ? 8'h20 : (mgmt_writedata[1:0] == 2'd3) ? 8'h01 : 8'h00;
 assign request = (state == S_SD_READ_WAIT_FOR_DATA || state == S_SD_WRITE_WAIT_FOR_EMPTY_FIFO || state == S_SD_FORMAT_WAIT_FOR_FILL) ?
 					{cmd_write_normal_in_progress | cmd_format_in_progress, cmd_read_normal_in_progress} : 2'b00;
 
@@ -364,6 +378,7 @@ wire cmd_recalibrate_in_progress  = pending_command[4:0] == 5'h07;
 wire cmd_read_id_in_progress      = pending_command[4:0] == 5'h0A;
 
 wire enter_result_phase =
+	media_error || // karabas
 	cmd_invalid_start || cmd_sense_interrupt_status_start || cmd_dump_registers_start || cmd_version_start || cmd_unlock_start || cmd_lock_start ||
 	(cmd_read_write_start && (cmd_read_write_incorrect_head_at_start || cmd_read_write_incorrect_sector_at_start || cmd_write_and_writeprotected_at_start)) ||
 	(state == S_CHECK_TC && (cmd_read_write_finish || cmd_format_finish)) ||
@@ -373,6 +388,7 @@ wire enter_result_phase =
 	cmd_read_id_finished;
 
 wire raise_interrupt = dma_irq_enable && (
+	media_error || // karabas
 	(cmd_read_write_start && (cmd_read_write_incorrect_head_at_start || cmd_read_write_incorrect_sector_at_start)) ||
 	(cmd_write_normal_start && cmd_write_and_writeprotected_at_start) ||
 	(state == S_CHECK_TC && (cmd_read_write_finish || cmd_format_finish)) ||
@@ -625,6 +641,7 @@ wire cmd_format_finish = cmd_format_in_progress && (
 reg [3:0] reply_left;
 always @(posedge clk) begin
 	if(~rst_n | sw_reset)                                                        reply_left <= 4'd0;
+	else if(media_error)                                                         reply_left <= 4'd7; // karabas
 	else if(cmd_invalid_start)                                                   reply_left <= 4'd1;
 	else if(cmd_read_write_start   && cmd_read_write_incorrect_head_at_start)    reply_left <= 4'd7;
 	else if(cmd_read_write_start   && cmd_read_write_incorrect_sector_at_start)  reply_left <= 4'd7;
@@ -644,6 +661,7 @@ end
 reg [79:0] reply;
 always @(posedge clk) begin
 	if(~rst_n | sw_reset)                                                     reply <= 80'd0;
+	else if(media_error)                                                      reply <= { 24'd0, 8'd2, sector[selected_drive[0]], 7'b0,head[selected_drive[0]], cylinder[selected_drive[0]], media_error_st2, media_error_st1, (8'h40 | { 5'd0, head[selected_drive[0]], selected_drive }) }; // karabas
 	else if(cmd_invalid_start)                                                reply <= { reply[79:8], 8'h80 };
 	else if(delay_last_cycle && cmd_recalibrate_in_progress)                  reply <= { reply[79:8], 8'h20 | { 6'd0, selected_drive } | ((~motor_enable[selected_drive[0]])? 8'h50 : 8'h00) };
 	else if(delay_last_cycle)                                                 reply <= { reply[79:8], 8'h20 | { 5'd0, head[selected_drive[0]], selected_drive } }; 
@@ -691,8 +709,13 @@ localparam [3:0] S_WAIT_FOR_FORMAT_INPUT        = 12;
 localparam [3:0] S_SD_FORMAT_WAIT_FOR_FILL      = 13;
 
 reg [3:0] state;
+
+// karabas
+assign media_error = mgmt_write && mgmt_address == 4'd6 && mgmt_writedata[1:0] != 2'd0 &&
+	(state == S_SD_READ_WAIT_FOR_DATA || state == S_SD_WRITE_WAIT_FOR_EMPTY_FIFO || state == S_SD_FORMAT_WAIT_FOR_FILL);
 always @(posedge clk) begin
 	if(~rst_n)                                                                    state <= S_IDLE;
+	else if(media_error)                                                          state <= S_IDLE; // karabas
 
 	//start read/write
 	else if(state == S_IDLE && cmd_read_write_ok_at_start)                        state <= S_PREPARE_COUNT;

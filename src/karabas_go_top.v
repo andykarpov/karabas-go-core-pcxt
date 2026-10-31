@@ -144,13 +144,10 @@ assign SDR_WE_N = 1'b1;
 assign SDR_CAS_N = 1'b1;
 assign SDR_RAS_N = 1'b1;
 
-assign FDC_DRIVE = 2'b00;
-assign FDC_MOTOR = 1'b0;
-assign FDC_DIR = 1'b0;
-assign FDC_STEP = 1'b0;
-assign FDC_WDATA = 1'b0;
-assign FDC_WGATE = 1'b0;
-assign FDC_SIDE_N = 1'b1;
+// the floppy connector: physical drives A / B (karabas_pcxt PHYS_FDD); high = active at the pins,
+// FDC_SIDE_N is SIDE1 there (1: head 1)
+wire [7:0] fdd_out;
+assign {FDC_WDATA, FDC_WGATE, FDC_SIDE_N, FDC_STEP, FDC_DIR, FDC_MOTOR, FDC_DRIVE[1], FDC_DRIVE[0]} = fdd_out;
 
 assign TAPE_OUT = 1'b0;
 assign BEEPER = 1'b0;
@@ -185,11 +182,14 @@ wire hs, vs;
 wire [15:0] audio_l, audio_r;
 
 // MCU_SCK is not on a global clock pin: bursts at the link clock
-karabas_pcxt #(.BURST_MAX_MHZ(0)) pcxt(
+karabas_pcxt #(.BURST_MAX_MHZ(0), .PHYS_FDD(1)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
 	.clk_vga(clk_28_571),
 	.areset(areset),
+
+	.fdd_in({FDC_RDATA, FDC_WPRT, FDC_TR00, FDC_INDEX}),
+	.fdd_out(fdd_out),
 
 	.sram_a(MA),
 	.sram_d(MD[7:0]),

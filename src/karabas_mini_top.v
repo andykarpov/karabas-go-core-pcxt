@@ -188,6 +188,9 @@ karabas_pcxt #(.BURST_MAX_MHZ(0), .FB(1)) pcxt(
 	.clk_vga(clk_28_571),
 	.areset(areset),
 
+	.fdd_in(4'b0000),
+	.fdd_out(),
+
 	.sram_a(MA),
 	.sram_d(MD[7:0]),
 	.sram_we_n(MWR_N[0]),
