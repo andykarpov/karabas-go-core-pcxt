@@ -27,7 +27,8 @@
 */
 
 module karabas_pcxt #(
-	parameter BURST_MAX_MHZ = 0 // see kg_mcu
+	parameter BURST_MAX_MHZ = 0, // see kg_mcu
+	parameter FB = 0             // 1: the HDMI frame buffer in the SDRAM (Mini, Mini G), see below
 ) (
 	input wire clk_100,
 	input wire clk_50,          // chipset, MCU link
@@ -63,7 +64,19 @@ module karabas_pcxt #(
 	output wire [23:0] vga_rgb,
 	output wire vga_hs,
 	output wire vga_vs,
+	output wire vga_de,         // FB: the active picture of the frame buffer raster
+	output wire fb_on,          // FB: the frame buffer path is selected (clk_vga)
 	output wire dvi_only,       // in clk_vga
+
+	// SDRAM (FB; tie off when FB = 0)
+	output wire sdr_clk,
+	output wire [12:0] sdr_a,
+	output wire [1:0] sdr_ba,
+	inout wire [15:0] sdr_dq,
+	output wire [1:0] sdr_dqm,
+	output wire sdr_ras_n,
+	output wire sdr_cas_n,
+	output wire sdr_we_n,
 
 	// audio (two's complement, clk_50)
 	output wire [15:0] audio_l,
@@ -80,6 +93,8 @@ module karabas_pcxt #(
 
 wire [5:0] r, g, b;
 wire hs, vs;
+wire [3:0] cga_video;
+wire cga_hsync;
 wire serial_mouse_tx, serial_mouse_rts;
 wire kb_swap_video, kb_turbo_mode;
 wire [7:0] xt_scancode;
@@ -110,6 +125,8 @@ system sys_inst
 	.VGA_B(b),
 	.VGA_HSYNC(hs),
 	.VGA_VSYNC(vs),
+	.CGA_VIDEO(cga_video),
+	.CGA_HSYNC(cga_hsync),
 
 	.SRAM_ADDR(sram_a),
 	.SRAM_DATA(sram_d),
@@ -385,7 +402,10 @@ kg_soft_switches #(
 );
 
 wire kb_hdd0_image;
-assign kb_swap_video = softsw_regs[0*8];
+// item 0: Video mode RGB / VGA (the scandoubler), or with FB the HDMI path Direct / Frame buffer
+// (the direct path needs the scandoubled VGA picture, so the scandoubler stays on)
+wire kb_item0 = softsw_regs[0*8];
+assign kb_swap_video = FB ? 1'b1 : kb_item0;
 assign kb_turbo_mode = softsw_regs[1*8];
 assign kb_hdd0_image = softsw_regs[2*8];
 assign kb_reset      = softsw_regs[7*8];
@@ -468,19 +488,67 @@ end
 // 0..399, vsync high at 448..479; the overlay counts from its rising edge, a step per 2 lines:
 // the 416 lines of the OSD centred at 76 - 8, then two rows (2 x 16 lines) up: its bottom came
 // close to the edge of the screen (Mini G, HDMI).
+// With the frame buffer the overlay gets the syncs ovl_hs / ovl_vs of pcxt_fb, placed so that the
+// same offsets centre the OSD on its 720 x 480 picture.
+wire [17:0] fb_rgb;
+wire fb_hs, fb_vs, fb_de, fb_ovl_hs, fb_ovl_vs;
+reg fb_sel = 1'b0;
+
+generate if (FB) begin : g_fb
+	pcxt_fb fb(
+		.clk_vga(clk_vga),
+		.clk_50(clk_50),
+		.reset(areset),
+		.video(cga_video),
+		.hs_i(cga_hsync),
+		.vs_i(~vs),
+		.rgb(fb_rgb),
+		.hs(fb_hs),
+		.vs(fb_vs),
+		.de(fb_de),
+		.ovl_hs(fb_ovl_hs),
+		.ovl_vs(fb_ovl_vs),
+		.sdr_clk(sdr_clk),
+		.sdr_a(sdr_a),
+		.sdr_ba(sdr_ba),
+		.sdr_dq(sdr_dq),
+		.sdr_dqm(sdr_dqm),
+		.sdr_ras_n(sdr_ras_n),
+		.sdr_cas_n(sdr_cas_n),
+		.sdr_we_n(sdr_we_n)
+	);
+	// the switch into clk_vga (it changes from the OSD only)
+	wire item0_v;
+	kg_sync #(.W(1)) u_sync_item0(.clk(clk_vga), .d(kb_item0), .q(item0_v));
+	always @(posedge clk_vga) fb_sel <= item0_v;
+end else begin : g_no_fb
+	assign fb_rgb = 18'd0;
+	assign {fb_hs, fb_vs, fb_de, fb_ovl_hs, fb_ovl_vs} = 5'b11000;
+	assign sdr_clk = 1'b0;
+	assign sdr_a = 13'd0;
+	assign sdr_ba = 2'd0;
+	assign sdr_dq = 16'bz;
+	assign sdr_dqm = 2'b11;
+	assign {sdr_ras_n, sdr_cas_n, sdr_we_n} = 3'b111;
+end endgenerate
+
+assign fb_on = fb_sel;
+
+wire [17:0] ovl_rgb = fb_sel ? fb_rgb : {r, g, b};
 kg_osd_overlay #(
 	.H_OFFSET(48),
 	.V_OFFSET(18)
 ) overlay(
 	.clk(clk_vga),
-	.rgb_i({r, 2'b00, g, 2'b00, b, 2'b00}),
+	.rgb_i({ovl_rgb[17:12], 2'b00, ovl_rgb[11:6], 2'b00, ovl_rgb[5:0], 2'b00}),
 	.rgb_o(vga_rgb),
-	.hsync_i(hs),
-	.vsync_i(vs),
+	.hsync_i(fb_sel ? fb_ovl_hs : hs),
+	.vsync_i(fb_sel ? fb_ovl_vs : vs),
 	.osd_command(osd_cmd_vga)
 );
 
-assign vga_hs = hs;
-assign vga_vs = vs;
+assign vga_hs = fb_sel ? fb_hs : hs;
+assign vga_vs = fb_sel ? fb_vs : vs;
+assign vga_de = fb_de;
 
 endmodule

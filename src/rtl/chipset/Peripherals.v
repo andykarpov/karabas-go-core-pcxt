@@ -21,6 +21,9 @@ module PERIPHERALS (
 	output	wire					VGA_VSYNC,
 	output	wire					VGA_HBlank,
 	output	wire					VGA_VBlank,
+	// karabas: the CGA picture before the scandoubler (the HDMI frame buffer, rtl/fb/pcxt_fb.v)
+	output	wire	[3:0]			CGA_VIDEO,
+	output	wire					CGA_HSYNC,
 	input		wire	[19:0]		address,
 	input		wire	[7:0]			internal_data_bus,
 	output	reg	[7:0] 		data_bus_out,
@@ -678,6 +681,8 @@ module PERIPHERALS (
 	wire [3:0] dbl_video;
 	assign VGA_HSYNC = scandoubler ? ~dbl_hsync : hsync;
 	assign video_cga = scandoubler ? dbl_video : video;
+	assign CGA_VIDEO = video;
+	assign CGA_HSYNC = hsync;
 
 	cga cga1(
 		.clk(clk_vga_cga),

@@ -18,6 +18,10 @@ module system(
 	output	wire	[5:0]			VGA_B,
 	output	wire					VGA_HSYNC,
 	output	wire					VGA_VSYNC,
+	// karabas: the CGA picture before the scandoubler (4-bit IRGB, the CRTC hsync, high active) for
+	// the HDMI frame buffer; VGA_VSYNC is the CRTC vsync, low active
+	output	wire	[3:0]			CGA_VIDEO,
+	output	wire					CGA_HSYNC,
 
 	input		wire [7:0]			kb_scancode,
 	input		wire					kb_scancode_upd,
@@ -336,6 +340,8 @@ reg splash_status = 1'b0;
         .VGA_VSYNC                          (VGA_VSYNC),
 		  .VGA_HBlank	  				           (HBlank),
 		  .VGA_VBlank							     (VBlank),
+		  .CGA_VIDEO                          (CGA_VIDEO),
+		  .CGA_HSYNC                          (CGA_HSYNC),
 //      .address                            (address),
         .address_ext                        (20'hFFFFF),
 //      .address_direction                  (address_direction),
