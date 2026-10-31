@@ -402,6 +402,7 @@ reg splash_status = 1'b0;
 //      .terminal_count_n                   (terminal_count_n)
         .port_b_out                         (port_b_out),
 		  .port_c_in                          (port_c_in),
+		  .port_b_in                          (port_b_out),
 	     .speaker_out                        (speaker_out), 
 `ifdef EMULATE_PS2
 		  .kb_scancode                        (kb_scancode),
