@@ -23,12 +23,14 @@
 
  Floppies (FLOPPY): the floppy controller of system (floppy.v of MiSTer, ports 3F0h, DMA 2,
  IRQ 6, two drives) gets drives A and B from slots 2 and 3 of the file mounter (pcxt_fdd in
- pcxt_disks, on the management bus of floppy.v).
+ pcxt_disks, on the management bus of floppy.v). PHYS_FDD (Karabas Go): a slot can be a physical
+ drive of the floppy connector (pcxt_fdd_phys).
 */
 
 module karabas_pcxt #(
 	parameter BURST_MAX_MHZ = 0, // see kg_mcu
-	parameter FB = 0             // 1: the HDMI frame buffer in the SDRAM (Mini, Mini G), see below
+	parameter FB = 0,            // 1: the HDMI frame buffer in the SDRAM (Mini, Mini G), see below
+	parameter PHYS_FDD = 0       // 1: the physical floppy drives (Karabas Go), see pcxt_fdd_phys
 ) (
 	input wire clk_100,
 	input wire clk_50,          // chipset, MCU link
@@ -51,6 +53,11 @@ module karabas_pcxt #(
 	output wire sd_di,
 	output wire sd_clk,
 	input wire sd_do,
+
+	// the floppy connector (PHYS_FDD), at the pins: { rdata, wprt, tr00, index }, { wdata, wgate,
+	// side1, step, dir, motor, ds1, ds0 }, high = active (inverters on the board)
+	input wire [3:0] fdd_in,
+	output wire [7:0] fdd_out,
 
 	// mcu
 	input wire mcu_cs_n,
@@ -263,6 +270,8 @@ wire [15:0] img_sum;
 wire img_q_wr;
 wire [23:0] img_q_di;
 wire img_q_ack;
+wire img_phys_wr;
+wire [15:0] img_phys;
 
 kg_mcu #(
 	.BURST_MAX_MHZ(BURST_MAX_MHZ),
@@ -388,8 +397,8 @@ kg_mcu #(
 	.IMG_Q_WR(img_q_wr),
 	.IMG_Q_DI(img_q_di),
 	.IMG_Q_ACK(img_q_ack),
-	.IMG_PHYS_WR(),
-	.IMG_PHYS(),
+	.IMG_PHYS_WR(img_phys_wr),
+	.IMG_PHYS(img_phys),
 	.IMG_FLUSH(),
 
 	.ESP_UART_TX_DATA(),
@@ -450,7 +459,7 @@ assign kb_reset      = softsw_regs[7*8];
 
 //---------- Disks: CF card and images ------------
 
-pcxt_disks disks(
+pcxt_disks #(.PHYS_FDD(PHYS_FDD)) disks(
 	.clk(clk_50),
 	.areset(areset),
 	.hdd0_image(kb_hdd0_image),
@@ -488,7 +497,11 @@ pcxt_disks disks(
 	.img_sum(img_sum),
 	.img_q_wr(img_q_wr),
 	.img_q_di(img_q_di),
-	.img_q_ack(img_q_ack)
+	.img_q_ack(img_q_ack),
+	.img_phys_wr(img_phys_wr),
+	.img_phys(img_phys),
+	.fdd_in(fdd_in),
+	.fdd_out(fdd_out)
 );
 
 

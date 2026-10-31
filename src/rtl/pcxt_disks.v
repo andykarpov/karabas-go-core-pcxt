@@ -7,7 +7,7 @@
  The disks behind the XT-IDE of system (XT2IDE, the 16-bit side, PHYSICAL_IDE): the CF card on the
  W* pins and hdf_ata (karabas-go-modules), the image disks of the mcu file mounter through
  img_sdc, slots 0 (HDD0) and 1 (HDD1); and the floppy drives A and B of system (floppy.v), slots
- 2 and 3, through pcxt_fdd.
+ 2 and 3, through pcxt_fdd (PHYS_FDD: or the physical drives of the floppy connector).
  - hdd0_image = 0: the card is device 0, the HDD1 image device 1 (the card ignores the commands
    for device 1); the read data comes from the card while DEV of the task file is 0.
  - hdd0_image = 1: the card gets no chip select, the images are devices 0 and 1.
@@ -17,7 +17,9 @@
  Simulation: sim/run_disks_sim.sh (tb_disks.v).
 */
 
-module pcxt_disks (
+module pcxt_disks #(
+	parameter PHYS_FDD = 0      // pcxt_fdd PHYS: the physical floppy drives (Karabas Go)
+) (
 	input wire clk,             // the clock of the chipset (clk_50)
 	input wire areset,
 	input wire hdd0_image,
@@ -59,7 +61,13 @@ module pcxt_disks (
 	input wire [15:0] img_sum,
 	output wire img_q_wr,
 	output wire [23:0] img_q_di,
-	input wire img_q_ack
+	input wire img_q_ack,
+	input wire img_phys_wr,
+	input wire [15:0] img_phys,
+
+	// the floppy connector (PHYS_FDD; see pcxt_fdd_phys)
+	input wire [3:0] fdd_in,
+	output wire [7:0] fdd_out
 );
 
 // the CF card: the bus of XT2IDE as before, off with HDD0 = Image
@@ -176,7 +184,7 @@ hdf_ata #(
 	.led()
 );
 
-pcxt_fdd u_fdd(
+pcxt_fdd #(.PHYS(PHYS_FDD)) u_fdd(
 	.clk(clk),
 	.reset(areset),
 
@@ -198,7 +206,12 @@ pcxt_fdd u_fdd(
 	.sdc_byte_in_strobe(sdc_byte_in_strobe & fdd_own),
 	.sdc_byte_addr(sdc_byte_addr),
 	.sdc_byte_in_data(sdc_byte_in_data),
-	.sdc_byte_out_data(fdd_byte_out_data)
+	.sdc_byte_out_data(fdd_byte_out_data),
+
+	.img_phys_wr(img_phys_wr),
+	.img_phys(img_phys),
+	.fdd_in(fdd_in),
+	.fdd_out(fdd_out)
 );
 
 // read data: the images, or the card while it is device 0
