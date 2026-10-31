@@ -112,6 +112,8 @@ wire [7:0] rtc_a, rtc_di, rtc_do;
 wire [12:0] joy_l, joy_r;
 wire [7:0] com2_rx_data, com2_rx_idx, com2_tx_data;
 wire com2_tx_wr;
+wire [7:0] prn_data;
+wire prn_wr, prn_busy;
 wire rtc_cs, rtc_wr_n;
 wire romload_active, romload_wr;
 wire [31:0] romload_addr;
@@ -174,6 +176,11 @@ system sys_inst
 	,.joy0(joy_l)
 	,.joy1(joy_r)
 `endif
+`ifdef LPT_USB
+	,.prn_data(prn_data)
+	,.prn_wr(prn_wr)
+	,.prn_busy(prn_busy)
+`endif
 `ifdef COM2_USB
 	,.com2_rx_data(com2_rx_data)
 	,.com2_rx_idx(com2_rx_idx)
@@ -194,6 +201,10 @@ assign fdd_request = 2'b00;
 `endif
 `ifndef MIDI_MPU401
 assign midi_tx = 1'b1;
+`endif
+`ifndef LPT_USB
+assign prn_data = 8'h00;
+assign prn_wr = 1'b0;
 `endif
 `ifndef COM2_USB
 assign com2_tx_wr = 1'b0;
@@ -261,6 +272,9 @@ kg_mcu #(
 `else
 	.ENABLE_RTC(0),
 `endif
+`ifdef LPT_USB
+	.ENABLE_PRINTER(1),
+`endif
 `ifdef COM2_USB
 	.ENABLE_UART(1),
 `else
@@ -313,6 +327,9 @@ kg_mcu #(
 	.RTC_CS(rtc_cs),
 	.RTC_WR_N(rtc_wr_n),
 
+	.PRN_DATA(prn_data),
+	.PRN_WR(prn_wr),
+	.PRN_BUSY(prn_busy),
 	.UART_RX_DATA(com2_rx_data),
 	.UART_RX_IDX(com2_rx_idx),
 	.UART_TX_DATA(com2_tx_data),

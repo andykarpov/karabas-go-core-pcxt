@@ -53,6 +53,12 @@ module PERIPHERALS (
 	input		wire	[12:0]		joy0,
 	input		wire	[12:0]		joy1,
 `endif
+`ifdef LPT_USB
+	// karabas: LPT1 (378h) on the USB printer of the mcu (kg_mcu_printer): a byte per strobe
+	output	wire	[7:0]			prn_data,
+	output	reg					prn_wr,
+	input		wire					prn_busy,
+`endif
 `ifdef COM2_USB
 	// karabas: COM2 (2F8h, IRQ 3) on the USB serial port of the mcu (kg_mcu_uart), com_usb.v
 	input		wire	[7:0]			com2_rx_data,
@@ -979,6 +985,42 @@ module PERIPHERALS (
 			fdd_readdata <= fdd_dma_readdata;
 `endif
 	 
+`ifdef LPT_USB
+	// LPT1: 378h data (read back: the BIOS finds the port so), 379h status (bit 7 not busy, 6 ACK
+	// low for 5 us when the printer is ready again after a byte, 5 paper out 0, 4 selected, 3 no
+	// error), 37Ah control (read back; a rising bit 0, STROBE, sends the data byte: the BIOS sets
+	// and clears it). INIT, AUTOFD, SELECTIN and the IRQ 7 enable are only stored.
+	wire lpt_port = ~address_enable_n && (address[15:2] == (16'h0378 >> 2));
+	reg [4:0] lpt_ctrl = 5'b00100;
+	reg lpt_sent = 1'b0;
+	reg [7:0] lpt_ack = 8'd0;
+	reg prn_busy_d = 1'b1;
+	reg [7:0] lpt_wdata = 8'h00;
+	assign prn_data = lpt_data;
+	always @(posedge clock) begin
+		if (~io_write_n)
+			lpt_wdata <= internal_data_bus;
+		prn_wr <= 1'b0;
+		prn_busy_d <= prn_busy;
+		if (io_write_n & ~prev_io_write_n & lpt_port && address[1:0] == 2'd2) begin
+			lpt_ctrl <= lpt_wdata[4:0];
+			if (lpt_wdata[0] && !lpt_ctrl[0]) begin
+				prn_wr <= 1'b1;
+				lpt_sent <= 1'b1;
+			end
+		end
+		if (lpt_ack != 8'd0)
+			lpt_ack <= lpt_ack - 1'd1;
+		if (lpt_sent && prn_busy_d && !prn_busy) begin
+			lpt_sent <= 1'b0;
+			lpt_ack <= 8'd250;
+		end
+	end
+	wire [7:0] lpt_status = {~prn_busy, lpt_ack == 8'd0, 1'b0, 1'b1, 1'b1, 3'b111};
+	wire [7:0] lpt_readdata = (address[1:0] == 2'd0) ? lpt_data :
+		(address[1:0] == 2'd1) ? lpt_status : {3'b111, lpt_ctrl};
+`endif
+
 `ifdef COM2_USB
 	// a write at the end of its strobe, a read latched at its start (it pops RBR, clears THRE)
 	wire com2_cs = ~address_enable_n && (address[15:3] == (16'h02F8 >> 3));
@@ -1073,10 +1115,17 @@ module PERIPHERALS (
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= cga_vram_cpu_dout;
 		end
+`ifdef LPT_USB
+		else if (lpt_port && address[1:0] != 2'd3 && ~io_read_n) begin
+			data_bus_out_from_chipset <= 1'b1;
+			data_bus_out <= lpt_readdata;
+		end
+`else
 		else if (lpt_cs && ~io_read_n) begin
 			data_bus_out_from_chipset <= 1'b1;
 			data_bus_out <= lpt_data;
 		end
+`endif
 		/*
       else if ((xtctl_chip_select) && (~io_read_n))
       begin

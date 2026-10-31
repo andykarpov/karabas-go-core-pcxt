@@ -34,3 +34,6 @@
 
 // COM2 (2F8h, IRQ 3) on the USB serial port of the mcu (115200 on the firmware side)
 `define COM2_USB
+
+// LPT1 (378h) on the USB printer of the mcu
+`define LPT_USB

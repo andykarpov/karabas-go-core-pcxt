@@ -67,11 +67,6 @@ module CHIPSET (
 	input		wire					kb_scancode_upd,
 	input    wire 					serial_mouse_tx,
 	output   wire 					serial_mouse_rts,
-	input		wire	[4:0]			joy_opts,
-	input		wire	[31:0] 		joy0,
-	input		wire	[31:0] 		joy1,
-	input		wire	[15:0]		joya0,
-	input		wire	[15:0]		joya1,
 	input		wire					clk_en_opl2,
 	output	wire	[15:0]		jtopl2_snd_e,
 	input		wire					adlibhide,
@@ -127,6 +122,11 @@ module CHIPSET (
 `ifdef GAME_PORT
    input    wire  [12:0]      joy0,
    input    wire  [12:0]      joy1,
+`endif
+`ifdef LPT_USB
+   output   wire  [7:0]       prn_data,
+   output   wire              prn_wr,
+   input    wire              prn_busy,
 `endif
 `ifdef COM2_USB
    input    wire  [7:0]       com2_rx_data,
@@ -288,11 +288,6 @@ module CHIPSET (
 		.kb_scancode_upd(kb_scancode_upd),
 		.serial_mouse_tx(serial_mouse_tx),
 		.serial_mouse_rts(serial_mouse_rts),
-//		.joy_opts(joy_opts),
-//		.joy0(joy0),
-//		.joy1(joy1),
-//		.joya0(joya0),
-//		.joya1(joya1),
 		.clk_en_opl2(clk_en_opl2),
 		.jtopl2_snd_e(jtopl2_snd_e),
 		.adlibhide(adlibhide),
@@ -348,6 +343,11 @@ module CHIPSET (
 `ifdef GAME_PORT
 		.joy0(joy0),
 		.joy1(joy1),
+`endif
+`ifdef LPT_USB
+		.prn_data(prn_data),
+		.prn_wr(prn_wr),
+		.prn_busy(prn_busy),
 `endif
 `ifdef COM2_USB
 		.com2_rx_data(com2_rx_data),
