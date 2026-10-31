@@ -73,3 +73,5 @@
 `define RTC_MCU
 // karabas: MIDI OUT of an MPU-401 in UART mode at 330h / 331h (the synthesizer of the board)
 `define MIDI_MPU401
+// karabas: the CPU of MiSTer PCXT 2026 (MCL86 of Boogermann / opengateware, HW/8088/mcl86_2026)
+`define MCL86_2026

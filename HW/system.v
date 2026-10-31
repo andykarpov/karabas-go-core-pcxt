@@ -596,7 +596,24 @@ reg splash_status = 1'b0;
 	  .SEGMENT(SEGMENT),
 
       .biu_done(biu_done),
+`ifdef MCL86_2026
+	  // karabas: the MCL86 of MiSTer PCXT 2026 (HW/8088/mcl86_2026): cycle accurate unless turbo,
+	  // the read data on the falling edge in turbo (the turbo_mode of the old BIU), one counter
+	  // tick per core clock (MiSTer's 4.77 MHz profile), an 8088 on the 8-bit bus
+	  .cycle_accrate(~turbo_mode),
+	  .clock_cycle_counter_division_ratio(8'd0),
+	  .clock_cycle_counter_decrement_value(8'd1),
+	  .shift_read_timing(turbo_mode),
+	  .is8086(1'b0),
+	  .fake286_flags(1'b0),
+	  .word_read_request(),
+	  .word_write_request(),
+	  .data_bus_word_out(),
+	  .data_bus_word(16'h0000),
+	  .word_access_possible(1'b0)
+`else
       .turbo_mode(turbo_mode)
+`endif
 	);
 	
 	always @(posedge clk_100) begin
