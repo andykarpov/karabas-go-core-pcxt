@@ -21,7 +21,9 @@
 
 // ROMs
 
-`define BIOS_WRITABLE = 1'b1;   // 0=No, 1=Yes
+// karabas: the BIOS and the XTIDE BIOS read only for the CPU, as the default of MiSTer 5ab34b8
+// (a stray write changed them until the core was loaded again)
+// `define BIOS_WRITABLE = 1'b1;   // 0=No, 1=Yes
 
 // `define ROM_BIOS "pcxt31.hex" // 8Kb BIOS (Turbo XT BIOS 3.1: 360K floppies only)
 // karabas: Sergey Kiselev's XT BIOS 1.0.0a of MiSTer PCXT (SW/ROMs/pcxt_xtsergey.rom, FC000-FFFFF):
