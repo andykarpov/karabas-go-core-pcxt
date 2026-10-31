@@ -60,8 +60,21 @@ floppy fdc(.clk(clk), .rst_n(~reset),
 	.mgmt_writedata(mgmt_writedata), .mgmt_read(1'b0), .mgmt_readdata(mgmt_readdata),
 	.wp(2'b00), .clock_rate(28'd50000000), .request(request));
 
-integer sectors = 0, bytes = 0, tcs = 0;
-always @(posedge clk) begin if (fdd_dma_rw_ack) bytes = bytes + 1; if (fdd_dma_tc & fdd_dma_rw_ack) tcs = tcs + 1; end
+integer sectors = 0, bytes = 0, tcs = 0, bad_addr = 0;
+reg [15:0] dma_start = 16'h7C00;
+reg [15:0] last_ao = 0;
+// the address of each byte (the 8237 outputs it during DACK): dma_start + n
+always @(posedge clk) begin
+	if (fdd_dma_ack) last_ao <= ao;
+	if (fdd_dma_rw_ack) begin
+		if (last_ao !== dma_start + bytes[15:0]) begin
+			if (bad_addr < 4) $display("ERROR byte %0d at %h, expected %h", bytes, last_ao, dma_start + bytes[15:0]);
+			bad_addr = bad_addr + 1;
+		end
+		bytes = bytes + 1;
+	end
+	if (fdd_dma_tc & fdd_dma_rw_ack) tcs = tcs + 1;
+end
 // pcxt_fdd: a sector into the fifo for each read request
 initial begin : feeder
 	integer k;
@@ -103,13 +116,15 @@ initial begin
 	fdc_wr(5, 8'h03); fdc_wr(5, 8'hDF); fdc_wr(5, 8'h02);
 	// the BIOS: DMA ch2 512 bytes, then read C0 H0 R1, EOT 18
 	wr8237(4'hB, 8'h46); wr8237(4'hC, 0); wr8237(4'h5, 8'hFF); wr8237(4'h5, 8'h01);
-	wr8237(4'hC, 0); wr8237(4'h4, 8'h00); wr8237(4'h4, 8'h7C); wr8237(4'hA, 8'h02);
+	if ($test$plusargs("addr0")) dma_start = 16'h0000;
+	wr8237(4'hC, 0); wr8237(4'h4, dma_start[7:0]); wr8237(4'h4, dma_start[15:8]); wr8237(4'hA, 8'h02);
 	fdc_wr(5, 8'hE6); fdc_wr(5, 8'h00); fdc_wr(5, 0); fdc_wr(5, 0); fdc_wr(5, 1); fdc_wr(5, 2); fdc_wr(5, 18); fdc_wr(5, 8'h1B); fdc_wr(5, 8'hFF);
 	repeat (100000) @(posedge clk);
 	$display("wire %b dreq %b hrq %b hlda %b dack %b exec_ndma %b has_term %b irq_en %b fifo_empty %b mask %b", fdd_dma_req_wire, dreq, hrq, hlda, dack_n, fdc.execute_ndma, fdc.dma_has_terminated, fdc.dma_irq_enable, fdc.fifo_empty, u.u_Priority_Encoder.mask_register);
 	repeat (400000) @(posedge clk);
 	$display("sectors %0d, DMA bytes %0d, TC to floppy %0d, irq %b, fdc state %0d (expected 1 / 512 / 1 / 1)", sectors, bytes, tcs, irq, fdc.state);
-	$display("tb_dma_fdd: %0d errors", (sectors != 1) + (bytes != 512) + (tcs != 1) + (irq != 1'b1) + (fdc.state != 0));
+	$display("start %h: %0d bytes at a wrong address", dma_start, bad_addr);
+	$display("tb_dma_fdd: %0d errors", (sectors != 1) + (bytes != 512) + (tcs != 1) + (irq != 1'b1) + (fdc.state != 0) + (bad_addr != 0));
 	$finish;
 end
 endmodule
