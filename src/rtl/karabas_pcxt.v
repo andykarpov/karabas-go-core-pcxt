@@ -29,7 +29,8 @@
 
 module karabas_pcxt #(
 	parameter BURST_MAX_MHZ = 0, // see kg_mcu
-	parameter FB = 0,            // 1: the HDMI frame buffer in the SDRAM (Mini, Mini G), see below
+	parameter FB = 0,            // 1: the frame buffer in the SDRAM (Mini, Mini G: HDMI; Go: VGA), see below
+	parameter FB_VGA = 0,        // with FB, 1: item 0 is RGB / VGA / Frame buffer (Go: the VGA output)
 	parameter PHYS_FDD = 0       // 1: the physical floppy drives (Karabas Go), see pcxt_fdd_phys
 ) (
 	input wire clk_100,
@@ -440,7 +441,7 @@ hid_parser hid_parser(
 wire [63:0] softsw_regs;
 kg_soft_switches #(
 	.N(8),
-	.INIT(64'h00_00_00_00_00_01_00_01)
+	.INIT({56'h00_00_00_00_00_01_00, FB_VGA ? 8'h02 : 8'h01})
 ) u_softsw(
 	.clk(clk_50),
 	.command(softsw_command),
@@ -450,9 +451,12 @@ kg_soft_switches #(
 
 wire kb_hdd0_image;
 // item 0: Video mode RGB / VGA (the scandoubler), or with FB the HDMI path Direct / Frame buffer
-// (the direct path needs the scandoubled VGA picture, so the scandoubler stays on)
-wire kb_item0 = softsw_regs[0*8];
-assign kb_swap_video = FB ? 1'b1 : kb_item0;
+// (the direct path needs the scandoubled VGA picture, so the scandoubler stays on); with FB_VGA
+// (Go) RGB / VGA / Frame buffer (the frame buffer takes the CGA picture before the scandoubler,
+// the scandoubler stays on for it: no 15 kHz flash while the OSD switches)
+wire [1:0] kb_item0 = softsw_regs[1:0];
+wire kb_fb_sel = FB_VGA ? (kb_item0 == 2'd2) : kb_item0[0];
+assign kb_swap_video = FB_VGA ? (kb_item0 != 2'd0) : FB ? 1'b1 : kb_item0[0];
 assign kb_turbo_mode = softsw_regs[1*8];
 assign kb_hdd0_image = softsw_regs[2*8];
 assign kb_reset      = softsw_regs[7*8];
@@ -570,7 +574,7 @@ generate if (FB) begin : g_fb
 	);
 	// the switch into clk_vga (it changes from the OSD only)
 	wire item0_v;
-	kg_sync #(.W(1)) u_sync_item0(.clk(clk_vga), .d(kb_item0), .q(item0_v));
+	kg_sync #(.W(1)) u_sync_item0(.clk(clk_vga), .d(kb_fb_sel), .q(item0_v));
 	always @(posedge clk_vga) fb_sel <= item0_v;
 end else begin : g_no_fb
 	assign fb_rgb = 18'd0;
