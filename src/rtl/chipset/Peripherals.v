@@ -796,10 +796,17 @@ module PERIPHERALS (
 		.SRAM_DATA_o(SRAM_DATA_A_o)
 	);
 
-	assign SRAM_WE_n = (CGA_VRAM_ENABLE_ff ? 1'b1 : SRAM_WE_n_A);
+	// karabas: the address reaches the pins up to 4 ns after the write strobe on some placements
+	// (Mini: MA 12..14 at 12-13.6 ns, MWR_N at 9.9 ns from the clock; the SRAM wants the address
+	// before WE): the strobe falls half a clock later, at the negative edge, and rises as before
+	// (the address holds after it). Mini hung in DOS with the corrupted memory.
+	wire SRAM_WE_n_mux = (CGA_VRAM_ENABLE_ff ? 1'b1 : SRAM_WE_n_A);
+	reg SRAM_WE_n_neg = 1'b1;
+	always @(negedge clock) SRAM_WE_n_neg <= SRAM_WE_n_mux;
+	assign SRAM_WE_n = SRAM_WE_n_mux | SRAM_WE_n_neg;
 	assign SRAM_ADDR = (CGA_VRAM_ENABLE_ff ? (tandy_16_gfx ? tandy_crtc_ff : cga_crtc_ff) : SRAM_ADDR_A);
 
-	assign SRAM_DATA = (~SRAM_WE_n ? SRAM_DATA_A_o : 8'hzz);
+	assign SRAM_DATA = (~SRAM_WE_n_mux ? SRAM_DATA_A_o : 8'hzz);
 	
 	// karabas: the BIOS (16 KB, FC000-FFFFF) and the XTIDE BIOS (EC000-EFFFF) also written by the
 	// rom loader of the mcu (the roms of core*.json; the PC is in reset meanwhile): rom address
