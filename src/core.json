@@ -4,6 +4,7 @@
     "build": "26110102",
     "visible": true,
     "type": "osd",
+    "drives": ["A", "B"],
     "order": 6,
     "eeprom_bank": 255,
     "roms": [
