@@ -20,7 +20,7 @@ An IBM PC/XT core for the Karabas Go, Mini and Mini G boards (Spartan-6 XC6SLX25
 - Clocks: `rtl/common/dcm.v` makes 100, 50 (`clk_chipset`, the MCU link) and 28.571 MHz (`clk_vga`) from `CLK_50MHZ`. `system.v` divides `clk_vga` to the CPU clock (14.29 MHz, the comments say 14.318) and 4.77 MHz for the peripherals.
 - CPU: `rtl/cpu` is sv2v of MiSTer PCXT `3238779` `rtl/8088` (the MCL86 of Boogermann / opengateware: EU, BIU max, adder, `mcl86_ucode.v` + `mcl86_ucode.mem`; MIT headers kept). `system.v` ties `cycle_accrate` = ~turbo, `shift_read_timing` = turbo, counter ratio 0 / decrement 1, 8088 (`is8086` 0, `fake286_flags` 0, no word path). XST merges the second microcode ROM copy (`mem_sel`) into the first. Verified on Mini G 26103109 (DOS, games, turbo, hot reset). The old MCL86 of 2022 (microcode `6db8e53`, the OF / INTR fixes, local `// karabas:` timing edits) was removed after that; it is in git history (`fcc2d66`, `HW/8088`).
 - Timing (build 26103109, Mini G): all constraints met, 66 % LUTs, 90 % slices, 31 RAMB16. The ucf derives the clocks from `CLK_50MHZ` (`dcm_system` 100 / 50 / 28.571 MHz of one PLL); TIG between 28.571 and 100 / 50 MHz (the upstream design crosses them freely); `TS_AUDIO_PIX` TIG from clk_50 into the HDMI pixel clock (zhdmi_top filters the samples); `TS_CPU_ADDR` 20 ns from `cpu_address` (latched at ALE, held for the bus cycle) to clk_50.
-- Packing: `src/make_core.py` is a symlink to `../../karabas-go-tools/make_core/make_core.py`, so the tools repo must sit next to this one. `make <board>-core` runs it on the `.bin` as it is, without a build (`core.json` -> `pcxt.kg1`, `core_mini.json` -> `pcxt.kg2`, `core_minig.json` -> `pcxt.kg3`); `xtsergey.hex` / `xtide.hex` are not build dependencies (the loader writes the ROMs over them). Set `"build"` (YYMMDDHH) in the json first. The `.bin` and `.kg*` files are committed.
+- Packing: `src/make_core.py` is a symlink to `../../karabas-go-tools/make_core/make_core.py`, so the tools repo must sit next to this one. `make <board>-core` runs it on the `.bin` as it is, without a build (`make_core.py core.json pcxt.kg --boards <board>`: `core.json` (one file for all boards: the common keys, `boards` for what differs; kgo2, karabas-go-tools `docs/kgo2.md`), all boards in `pcxt.kg`); `xtsergey.hex` / `xtide.hex` are not build dependencies (the loader writes the ROMs over them). Set `"build"` (YYMMDDHH) in the json first. The `.bin` and `.kg` files are committed.
 
 ## MCU link
 
@@ -52,7 +52,7 @@ An IBM PC/XT core for the Karabas Go, Mini and Mini G boards (Spartan-6 XC6SLX25
 - `karabas-go-firmware`: the MCU side of the link (`src/config.h` command codes, `docs/protocol.md`, `docs/burst_protocol.md`).
 - `karabas-go-modules`: the shared `kg_*` modules (`kg_mcu` with bursts, `img_sdc`, `hdf_ata`, `kg_soft_switches`, `kg_osd_overlay`, `zhdmi`). `karabas-go-core-next186` is the converted PC core to copy from (Makefile build, OSD, HDD images through `img_sdc` + `hdf_ata`, `FT_CLK_OUT`).
 - `karabas-go-tools`: `make_core.py`.
-- Release repos: `../karabas-go` (`cores/pcxt.kg1`) and `~/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-mini/karabas-mini` (`cores/pcxt.kg2`, `cores/pcxt.kg3`). Their copies are the same files as `src/pcxt.kg*`.
+- Release repos: `../karabas-go` and `~/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-mini/karabas-mini`, both `cores/pcxt.kg`: the same file as `src/pcxt.kg`.
 
 ## Git
 

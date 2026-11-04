@@ -37,10 +37,10 @@ With HDD0 = CF card, the CF card is drive 0 and the HDD1 image drive 1; with HDD
 
 ISE 14.7 on Linux (`/opt/Xilinx/14.7/ISE_DS/settings64.sh`), in `src/`:
 
-    make minig        # Mini G: karabas_minig_top.bin, pcxt.kg3
-    make mini         # Mini:   karabas_mini_top.bin,  pcxt.kg2
-    make go           # Go:     karabas_go_top.bin,    pcxt.kg1
-    make minig-core   # repack pcxt.kg3 only (core_minig.json: build number, BIOS)
+    make minig        # Mini G: karabas_minig_top.bin into pcxt.kg
+    make mini         # Mini:   karabas_mini_top.bin into pcxt.kg
+    make go           # Go:     karabas_go_top.bin into pcxt.kg
+    make minig-core   # repack the Mini G part of pcxt.kg only (core.json: build number, BIOS)
 
 The submodule `modules/` (karabas-go-modules) is needed: clone with `--recursive` or run `git submodule update --init`. `make_core.py` is a link into `karabas-go-tools`, which must sit next to this repository. The BIOS and the XTIDE BIOS of the core file are the `roms` of `core*.json` (`src/rom/`).
 

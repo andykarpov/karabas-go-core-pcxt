@@ -68,3 +68,4 @@ _xmsgs/
 
 # special scripts
 make_core.py
+src/kg_*.stamp
