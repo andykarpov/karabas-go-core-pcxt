@@ -52,7 +52,7 @@ An IBM PC/XT core for the Karabas Go, Mini and Mini G boards (Spartan-6 XC6SLX25
 - `karabas-go-firmware`: the MCU side of the link (`src/config.h` command codes, `docs/protocol.md`, `docs/burst_protocol.md`).
 - `karabas-go-modules`: the shared `kg_*` modules (`kg_mcu` with bursts, `img_sdc`, `hdf_ata`, `kg_soft_switches`, `kg_osd_overlay`, `zhdmi`). `karabas-go-core-next186` is the converted PC core to copy from (Makefile build, OSD, HDD images through `img_sdc` + `hdf_ata`, `FT_CLK_OUT`).
 - `karabas-go-tools`: `make_core.py`.
-- Release repos: `../karabas-go` and `~/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-mini/karabas-mini`, both `cores/pcxt.kg`: the same file as `src/pcxt.kg`.
+- Release repo: `../karabas-go`, `cores/pcxt.kg` (all boards; `karabas-mini` has no cores any more): the same file as `src/pcxt.kg`.
 
 ## Git
 
