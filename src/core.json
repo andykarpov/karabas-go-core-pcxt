@@ -2,23 +2,30 @@
     "id": "pcxt",
     "name": "PC XT",
     "build": "26110102",
-    "bitstream": "karabas_go_top.bin",
     "visible": true,
     "type": "osd",
     "order": 6,
     "eeprom_bank": 255,
     "roms": [
-        {"filename": "rom/bios_sergey_xt.rom", "address": 0},
-        {"filename": "rom/xtide.rom", "address": 16384}
+    {"filename": "rom/bios_sergey_xt.rom", "address": 0},
+    {"filename": "rom/xtide.rom", "address": 16384}
     ],
+    "boards": {
+        "go": {"bitstream": "karabas_go_top.bin"},
+        "mini": {"bitstream": "karabas_mini_top.bin"},
+        "minig": {"bitstream": "karabas_minig_top.bin", "spi_freq": 16}
+    },
     "osd": [
-        {"type": "S", "bits": 2, "name": "Video mode", "options": ["RGB", "VGA", "Frame buffer"], "default": 2, "hotkey": "Menu+F11"},
-        {"type": "S", "bits": 1, "name": "Turbo", "options": ["Off", "On"], "default": 0, "hotkey": "Menu+F12"},
-        {"type": "S", "bits": 1, "name": "HDD0", "options": ["CF card", "Image"], "default": 1},
-        {"type": "F", "name": "HDD0 image", "slot": 0, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F1"},
-        {"type": "F", "name": "HDD1 image", "slot": 1, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F2"},
-        {"type": "F", "name": "FDD A image", "slot": 2, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F3", "physical": 1},
-        {"type": "F", "name": "FDD B image", "slot": 3, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F4", "physical": 1},
-        {"type": "T", "bits": 1, "name": "Reset", "options": null, "default": 0, "hotkey": "Ctrl+Alt+Del"}
+    {"type": "S", "bits": 2, "name": "Video mode", "options": ["RGB", "VGA", "Frame buffer"], "default": 2, "hotkey": "Menu+F11", "boards": ["go"]},
+    {"type": "S", "bits": 1, "name": "HDMI", "options": ["Direct", "Frame buffer"], "default": 1, "hotkey": "Menu+F11", "boards": ["mini", "minig"]},
+    {"type": "S", "bits": 1, "name": "Turbo", "options": ["Off", "On"], "default": 0, "hotkey": "Menu+F12"},
+    {"type": "S", "bits": 1, "name": "HDD0", "options": ["CF card", "Image"], "default": 1},
+    {"type": "F", "name": "HDD0 image", "slot": 0, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F1"},
+    {"type": "F", "name": "HDD1 image", "slot": 1, "extensions": ".img .vhd .hdf .bin .raw", "hotkey": "Menu+F2"},
+    {"type": "F", "name": "FDD A image", "slot": 2, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F3", "physical": 1, "boards": ["go"]},
+    {"type": "F", "name": "FDD B image", "slot": 3, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F4", "physical": 1, "boards": ["go"]},
+    {"type": "F", "name": "FDD A image", "slot": 2, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F3", "boards": ["mini", "minig"]},
+    {"type": "F", "name": "FDD B image", "slot": 3, "extensions": ".img .ima .dsk .vfd .flp", "hotkey": "Menu+F4", "boards": ["mini", "minig"]},
+    {"type": "T", "bits": 1, "name": "Reset", "options": null, "default": 0, "hotkey": "Ctrl+Alt+Del"}
     ]
 }

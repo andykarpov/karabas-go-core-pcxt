@@ -1,7 +1,7 @@
 # Command line build of the PCXT core for the three Karabas boards: the steps and options of the ISE 14.7
 # project navigator (the .xise projects of the boards, removed since).
 #
-#   make                 all three boards (pcxt.kg1, pcxt.kg2, pcxt.kg3)
+#   make                 all the boards (pcxt.kg)
 #   make go|mini|minig   one board: synthesis, implementation, bitstream, .kg file
 #   make minig-xst       one step: <board>-xst (.ngc), <board>-impl (.bin), <board>-core (.kg)
 #   make minig-report    LUTs, slices, block RAMs and the timing result of the last build
@@ -21,12 +21,9 @@ SHELL = /bin/bash
 # settings64.sh takes the arguments of the shell that sources it: none here
 XIL = source $(ISE_SETTINGS) > /dev/null;
 
-KG_go = pcxt.kg1
-KG_mini = pcxt.kg2
-KG_minig = pcxt.kg3
-JSON_go = core.json
-JSON_mini = core_mini.json
-JSON_minig = core_minig.json
+# all boards in one file: a board build puts its bitstream in (make_core --boards)
+KG = pcxt.kg
+JSON = core.json
 
 # map / par options (as the .xise projects had them, but cost table 2)
 MAP_T_go = 1
@@ -57,15 +54,16 @@ karabas_$(1)_top.bin: karabas_$(1)_top.ngc karabas_$(1).ucf karabas_$(1)_top.ut
 	$(XIL) trce -intstyle ise -v 3 -s 2 -n 3 -fastpaths -xml karabas_$(1)_top.twx karabas_$(1)_top.ncd -o karabas_$(1)_top.twr karabas_$(1)_top.pcf -ucf karabas_$(1).ucf
 	$(XIL) bitgen -intstyle ise -f karabas_$(1)_top.ut karabas_$(1)_top.ncd
 
-$(KG_$(1)): karabas_$(1)_top.bin $(JSON_$(1)) $(wildcard rom/*.rom)
-	python3 make_core.py $(JSON_$(1)) $$@
+kg_$(1).stamp: karabas_$(1)_top.bin $(JSON) $(wildcard rom/*.rom)
+	python3 make_core.py $(JSON) $(KG) --boards $(1)
+	touch $$@
 
-$(1): $(KG_$(1))
+$(1): kg_$(1).stamp
 $(1)-xst: karabas_$(1)_top.ngc
 $(1)-impl: karabas_$(1)_top.bin
 # repack the core file only (a new build number or ROM in the json, rom/*.rom), the bitstream as it is
 $(1)-core:
-	python3 make_core.py $(JSON_$(1)) $(KG_$(1))
+	python3 make_core.py $(JSON) $(KG) --boards $(1)
 $(1)-report:
 	@grep -E "Number of (Slice LUTs|occupied Slices|RAMB16BWERs|RAMB8BWERs|DSP48A1s):" karabas_$(1)_top_map.mrp
 	@grep -E "constraints? (was|were) met|constraints? not met|Timing Score" karabas_$(1)_top.par | sort -u
@@ -74,6 +72,7 @@ endef
 $(foreach b,$(BOARDS),$(eval $(call board,$(b))))
 
 clean:
+	rm -f kg_*.stamp
 	rm -rf _ngo _xmsgs xlnx_auto_0_xdb xst iseconfig
 	rm -f *.bgn *.bit *.bld *.drc *.ncd *.ngc *.ngd *.ngr *.pad *.par *.pcf *.ptwx *.stx
 	rm -f *.unroutes *.xpi *.map *.mrp *.ngm *.xrpt *.twr *.twx *.lso *.syr *.csv *_pad.txt
