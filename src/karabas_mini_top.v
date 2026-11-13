@@ -182,7 +182,7 @@ wire [15:0] audio_l, audio_r;
 // MIDI: 12 MHz for the synthesizer
 midi_clk midi_clk_inst(.clk_50(clk_50), .midi_clk(MIDI_CLK));
 
-karabas_pcxt #(.BURST_MAX_MHZ(0), .FB(1)) pcxt(
+karabas_pcxt #(.BURST_MAX_MHZ(0), .FB(1), .LINK(2)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
 	.clk_vga(clk_28_571),
