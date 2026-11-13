@@ -177,7 +177,7 @@ wire fb_de, fb_on;
 wire [15:0] audio_l, audio_r;
 
 // Rev.G has MCU_SCK on a global clock pin: bursts at up to 32 MHz
-karabas_pcxt #(.BURST_MAX_MHZ(32), .FB(1)) pcxt(
+karabas_pcxt #(.BURST_MAX_MHZ(32), .FB(1), .LINK(2)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
 	.clk_vga(clk_28_571),

@@ -28,7 +28,7 @@ JSON = core.json
 # map / par options (as the .xise projects had them, but cost table 2)
 MAP_T_go = 1
 MAP_T_mini = 2
-MAP_T_minig = 2
+MAP_T_minig = 3  # link v2 (26111319): -t 2 missed the 100 MHz clock by 66 ps
 MAP_OPTS = -logic_opt off -ol high -xt 3 -register_duplication off -r 4 -global_opt off -mt off -ir off -pr off -lc off -power off
 PAR_OPTS = -ol high -mt off
 
