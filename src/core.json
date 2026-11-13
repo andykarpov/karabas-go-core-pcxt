@@ -14,7 +14,7 @@
     "boards": {
         "go": {"bitstream": "karabas_go_top.bin"},
         "mini": {"bitstream": "karabas_mini_top.bin"},
-        "minig": {"bitstream": "karabas_minig_top.bin", "spi_freq": 16}
+        "minig": {"link": 2, "build": "26111319", "bitstream": "karabas_minig_top.bin", "spi_freq": 16}
     },
     "osd": [
     {"type": "S", "bits": 2, "name": "Video mode", "options": ["RGB", "VGA", "Frame buffer"], "default": 2, "hotkey": "Menu+F11", "boards": ["go"]},
