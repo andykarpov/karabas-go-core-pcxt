@@ -176,7 +176,7 @@ wire [15:0] audio_l, audio_r;
 // MCU_SCK is not on a global clock pin: bursts at the link clock
 // FB_VGA: OSD item 0 RGB / VGA / Frame buffer, the frame buffer gives the VGA output a fixed
 // raster (910 x 525, 720 x 480, 31.4 kHz / 59.8 Hz) for monitors that refuse the scandoubled CGA
-karabas_pcxt #(.BURST_MAX_MHZ(0), .FB(1), .FB_VGA(1), .PHYS_FDD(1)) pcxt(
+karabas_pcxt #(.BURST_MAX_MHZ(0), .FB(1), .FB_VGA(1), .PHYS_FDD(1), .LINK(2)) pcxt(
 	.clk_100(clk_100),
 	.clk_50(clk_50),
 	.clk_vga(clk_28_571),

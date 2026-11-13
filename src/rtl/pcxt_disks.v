@@ -18,7 +18,10 @@
 */
 
 module pcxt_disks #(
-	parameter PHYS_FDD = 0      // pcxt_fdd PHYS: the physical floppy drives (Karabas Go)
+	parameter PHYS_FDD = 0,     // pcxt_fdd PHYS: the physical floppy drives (Karabas Go)
+	// the MCU link: 1 = v1 (kg_mcu: the img_* stream, img_sdc in here), 2 = v2 (kg_mcu2: its mounter
+	// has the sector interface of img_sdc, the sdc_* ports below; img_* unused)
+	parameter LINK = 1
 ) (
 	input wire clk,             // the clock of the chipset (clk_50)
 	input wire areset,
@@ -62,6 +65,20 @@ module pcxt_disks #(
 	output wire img_q_wr,
 	output wire [23:0] img_q_di,
 	input wire img_q_ack,
+	// LINK 2: the sector interface of the mounter of kg_mcu2 (img_sdc names)
+	input wire [7:0] sdc_img_mounted_i,
+	input wire [63:0] sdc_img_size_i,
+	output wire [7:0] sdc_rd_o,
+	output wire [7:0] sdc_wr_o,
+	output wire [31:0] sdc_sector_o,
+	input wire sdc_busy_i,
+	input wire sdc_done_i,
+	input wire sdc_error_i,
+	input wire [2:0] sdc_slot_i,
+	input wire sdc_byte_in_strobe_i,
+	input wire [8:0] sdc_byte_addr_i,
+	input wire [7:0] sdc_byte_in_data_i,
+	output wire [7:0] sdc_byte_out_data_o,
 	input wire img_phys_wr,
 	input wire [15:0] img_phys,
 
@@ -111,6 +128,12 @@ wire [7:0] fdd_byte_out_data;
 wire hdf_own = (sdc_slot < 3'd2);
 wire fdd_own = (sdc_slot[2:1] == 2'b01);
 
+wire [7:0] sdc_rd_v = {4'b0000, fdd_rd, hdf_rd};
+wire [7:0] sdc_wr_v = {4'b0000, fdd_wr, hdf_wr};
+wire [31:0] sdc_sector_v = (hdf_rd != 2'b00 || hdf_wr != 2'b00) ? hdf_sector : fdd_sector; // the lower slots go first
+wire [7:0] sdc_byte_out_v = fdd_own ? fdd_byte_out_data : hdf_byte_out_data;
+
+generate if (LINK == 1) begin : link1
 img_sdc #(
 	.OUT_LATENCY(3),
 	.TIMEOUT(24'd10000000), // 200 ms at 50 MHz
@@ -133,9 +156,9 @@ img_sdc #(
 
 	.sdc_img_mounted(sdc_img_mounted),
 	.sdc_img_size(sdc_img_size),
-	.sdc_rd({4'b0000, fdd_rd, hdf_rd}),
-	.sdc_wr({4'b0000, fdd_wr, hdf_wr}),
-	.sdc_sector((hdf_rd != 2'b00 || hdf_wr != 2'b00) ? hdf_sector : fdd_sector), // the lower slots go first
+	.sdc_rd(sdc_rd_v),
+	.sdc_wr(sdc_wr_v),
+	.sdc_sector(sdc_sector_v),
 	.sdc_busy(sdc_busy),
 	.sdc_done(sdc_done),
 	.sdc_error(sdc_error),
@@ -143,9 +166,30 @@ img_sdc #(
 	.sdc_byte_in_strobe(sdc_byte_in_strobe),
 	.sdc_byte_addr(sdc_byte_addr),
 	.sdc_byte_in_data(sdc_byte_in_data),
-	.sdc_byte_out_data(fdd_own ? fdd_byte_out_data : hdf_byte_out_data),
+	.sdc_byte_out_data(sdc_byte_out_v),
 	.active()
 );
+	assign sdc_rd_o = 8'd0;
+	assign sdc_wr_o = 8'd0;
+	assign sdc_sector_o = 32'd0;
+	assign sdc_byte_out_data_o = 8'd0;
+end else begin : link2
+	assign sdc_img_mounted = sdc_img_mounted_i;
+	assign sdc_img_size = sdc_img_size_i;
+	assign sdc_busy = sdc_busy_i;
+	assign sdc_done = sdc_done_i;
+	assign sdc_error = sdc_error_i;
+	assign sdc_slot = sdc_slot_i;
+	assign sdc_byte_in_strobe = sdc_byte_in_strobe_i;
+	assign sdc_byte_addr = sdc_byte_addr_i;
+	assign sdc_byte_in_data = sdc_byte_in_data_i;
+	assign sdc_rd_o = sdc_rd_v;
+	assign sdc_wr_o = sdc_wr_v;
+	assign sdc_sector_o = sdc_sector_v;
+	assign sdc_byte_out_data_o = sdc_byte_out_v;
+	assign img_q_wr = 1'b0;
+	assign img_q_di = 24'd0;
+end endgenerate
 
 wire [15:0] hdf_dout;
 wire hdf_dev;
