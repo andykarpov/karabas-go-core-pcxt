@@ -243,13 +243,14 @@ assign VGA_B = rgb[7:0];
 assign VGA_HS = hs;
 assign VGA_VS = vs;
 
+// the pixel clock of the VGA DAC, inverted: the DAC takes the pixel on the rising V_CLK, the middle of the pixel
 ODDR2 uODDR2(
 	.Q(V_CLK),
 	.C0(clk_28_571),
 	.C1(~clk_28_571),
 	.CE(1'b1),
-	.D0(1'b1),
-	.D1(1'b0),
+	.D0(1'b0),
+	.D1(1'b1),
 	.R(1'b0),
 	.S(1'b0)
 );
